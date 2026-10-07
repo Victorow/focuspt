@@ -13,6 +13,7 @@ import {
   pdfFormatLocalDate,
   pdfDeltaTone,
   pdfUpToDate,
+  pdfSelectPhotos,
 } from '../app/pdf-report';
 
 // =============================================
@@ -293,5 +294,86 @@ describe('pdfUpToDate', () => {
   });
   it('referência ausente → retorna tudo', () => {
     expect(pdfUpToDate(items, '')).toHaveLength(3);
+  });
+});
+
+// =============================================
+// pdfSelectPhotos — fotos do mês correspondente
+// =============================================
+describe('pdfSelectPhotos', () => {
+  const ph = (category: string, date: string) => ({ category, date, dataUrl: `${category}@${date}` });
+
+  it('caso Stefane: exporta 03/10 → Início 21/06 e Recente 05/10 (fotos tiradas dias depois)', () => {
+    const photos = [ph('FRENTE', '2026-06-21'), ph('FRENTE', '2026-10-05'), ph('COSTAS', '2026-06-21'), ph('COSTAS', '2026-10-05')];
+    const sel = pdfSelectPhotos(photos, ['2026-06-20', '2026-10-03'], '2026-10-03');
+    expect(sel.get('FRENTE')?.inicio?.date).toBe('2026-06-21');
+    expect(sel.get('FRENTE')?.recente?.date).toBe('2026-10-05');
+    expect(sel.get('COSTAS')?.inicio?.date).toBe('2026-06-21');
+    expect(sel.get('COSTAS')?.recente?.date).toBe('2026-10-05');
+  });
+
+  it('exportar avaliação antiga (20/06) não mostra fotos futuras', () => {
+    const photos = [ph('FRENTE', '2026-06-21'), ph('FRENTE', '2026-10-05')];
+    const sel = pdfSelectPhotos(photos, ['2026-06-20', '2026-10-03'], '2026-06-20');
+    expect(sel.get('FRENTE')?.recente?.date).toBe('2026-06-21');
+    expect(sel.get('FRENTE')?.inicio).toBeUndefined();
+  });
+
+  it('Início = foto mais antiga entre as avaliações anteriores', () => {
+    const photos = [ph('FRENTE', '2026-06-15'), ph('FRENTE', '2026-07-13'), ph('FRENTE', '2026-08-24'), ph('FRENTE', '2026-10-05')];
+    const sel = pdfSelectPhotos(photos, ['2026-06-14', '2026-07-11', '2026-08-22', '2026-10-03'], '2026-10-03');
+    expect(sel.get('FRENTE')?.inicio?.date).toBe('2026-06-15');
+    expect(sel.get('FRENTE')?.recente?.date).toBe('2026-10-05');
+  });
+
+  it('avaliação única → todas as fotos vão para ela; Recente = mais próxima', () => {
+    const photos = [ph('FRENTE', '2026-10-01'), ph('FRENTE', '2026-10-05')];
+    const sel = pdfSelectPhotos(photos, ['2026-10-03'], '2026-10-03');
+    expect(sel.get('FRENTE')?.inicio).toBeUndefined();
+    // empate (2 dias de cada lado) → data mais recente
+    expect(sel.get('FRENTE')?.recente?.date).toBe('2026-10-05');
+  });
+
+  it('sem avaliações → usa a avaliação exportada', () => {
+    const sel = pdfSelectPhotos([ph('FRENTE', '2026-10-05')], [], '2026-10-03');
+    expect(sel.get('FRENTE')?.recente?.date).toBe('2026-10-05');
+  });
+
+  it('empate de distância entre avaliações → atribui à avaliação anterior', () => {
+    // 2026-08-01 e 2026-08-05: foto em 2026-08-03 fica a 2 dias de cada → vai para 08-01
+    const photos = [ph('FRENTE', '2026-08-03')];
+    const exportNew = pdfSelectPhotos(photos, ['2026-08-01', '2026-08-05'], '2026-08-05');
+    expect(exportNew.get('FRENTE')?.recente).toBeUndefined();
+    expect(exportNew.get('FRENTE')?.inicio?.date).toBe('2026-08-03');
+    const exportOld = pdfSelectPhotos(photos, ['2026-08-01', '2026-08-05'], '2026-08-01');
+    expect(exportOld.get('FRENTE')?.recente?.date).toBe('2026-08-03');
+  });
+
+  it('distância calculada em dias reais (virada de mês/ano)', () => {
+    // 2026-12-30 → 2027-01-02 = 3 dias; 2026-12-30 → 2026-12-20 = 10 dias
+    const sel = pdfSelectPhotos([ph('FRENTE', '2026-12-30')], ['2026-12-20', '2027-01-02'], '2027-01-02');
+    expect(sel.get('FRENTE')?.recente?.date).toBe('2026-12-30');
+  });
+
+  it('só Início (sem foto da avaliação atual) → retorna apenas inicio', () => {
+    const sel = pdfSelectPhotos([ph('FRENTE', '2026-06-21')], ['2026-06-20', '2026-10-03'], '2026-10-03');
+    expect(sel.get('FRENTE')?.inicio?.date).toBe('2026-06-21');
+    expect(sel.get('FRENTE')?.recente).toBeUndefined();
+  });
+
+  it('categorias sem foto não aparecem no resultado', () => {
+    const sel = pdfSelectPhotos([ph('FRENTE', '2026-10-05')], ['2026-10-03'], '2026-10-03');
+    expect(sel.has('COSTAS')).toBe(false);
+    expect(sel.size).toBe(1);
+  });
+
+  it('fotos sem atribuição válida (só futuras) → categoria ausente', () => {
+    const sel = pdfSelectPhotos([ph('FRENTE', '2026-10-05')], ['2026-06-20', '2026-10-03'], '2026-06-20');
+    expect(sel.has('FRENTE')).toBe(false);
+  });
+
+  it('aceita datas com hora (usa só YYYY-MM-DD)', () => {
+    const sel = pdfSelectPhotos([ph('FRENTE', '2026-10-05T23:30:00')], ['2026-10-03T00:00:00'], '2026-10-03');
+    expect(sel.get('FRENTE')?.recente?.date).toBe('2026-10-05T23:30:00');
   });
 });

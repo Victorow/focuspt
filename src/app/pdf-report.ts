@@ -69,6 +69,62 @@ export function pdfUpToDate<T extends { date: string }>(items: T[], refDate: str
   return items.filter(i => (i.date ?? '').slice(0, 10) <= ref);
 }
 
+/** 'YYYY-MM-DD' → número do dia (dias desde a época), sem parse UTC de string; null se inválida. */
+function pdfDayNumber(dateStr: string | null | undefined): number | null {
+  const p = pdfYmd(dateStr ?? '');
+  return p ? Date.UTC(p.y, p.m - 1, p.d) / 86_400_000 : null;
+}
+
+/**
+ * Seleciona as fotos do comparativo por ângulo ("fotos do mês correspondente").
+ * As fotos não têm avaliacao_id e costumam ser tiradas dias DEPOIS da avaliação, então cada foto é
+ * atribuída à avaliação de data mais próxima (empate → a anterior). Sem avaliações → a exportada.
+ * - recente: foto atribuída à avaliação exportada (mais próxima de refDate; empate → a mais nova).
+ * - inicio: foto mais antiga atribuída a uma avaliação ANTERIOR à exportada.
+ * Fotos atribuídas a avaliações posteriores são ignoradas. Ângulos sem foto não entram no Map.
+ */
+export function pdfSelectPhotos<T extends { category: string; date: string }>(
+  photos: T[],
+  assessmentDates: string[],
+  refDate: string,
+): Map<string, { inicio?: T; recente?: T }> {
+  const result = new Map<string, { inicio?: T; recente?: T }>();
+  const refDay = pdfDayNumber(refDate);
+  if (refDay === null) return result;
+
+  const days = new Set<number>([refDay]);
+  for (const d of assessmentDates) {
+    const n = pdfDayNumber(d);
+    if (n !== null) days.add(n);
+  }
+  const sortedDays = [...days].sort((x, y) => x - y);
+
+  for (const photo of photos) {
+    const pd = pdfDayNumber(photo.date);
+    if (pd === null) continue;
+    // Avaliação mais próxima; percorre em ordem crescente e só troca se for estritamente mais perto (empate → anterior)
+    let assigned = sortedDays[0];
+    for (const d of sortedDays) {
+      if (Math.abs(pd - d) < Math.abs(pd - assigned)) assigned = d;
+    }
+    if (assigned > refDay) continue;
+
+    const entry = result.get(photo.category) ?? {};
+    if (assigned === refDay) {
+      const cur = entry.recente ? pdfDayNumber(entry.recente.date)! : null;
+      const better = cur === null
+        || Math.abs(pd - refDay) < Math.abs(cur - refDay)
+        || (Math.abs(pd - refDay) === Math.abs(cur - refDay) && pd > cur);
+      if (better) entry.recente = photo;
+    } else {
+      const cur = entry.inicio ? pdfDayNumber(entry.inicio.date)! : null;
+      if (cur === null || pd < cur) entry.inicio = photo;
+    }
+    result.set(photo.category, entry);
+  }
+  return result;
+}
+
 export function pdfGenderLabel(g: 'MALE' | 'FEMALE'): string {
   return g === 'MALE' ? 'Masculino' : 'Feminino';
 }
@@ -200,6 +256,13 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
     return t + '…';
   };
 
+  // Reduz a fonte (até minSize) para o texto caber em maxW; retorna o tamanho aplicado.
+  const fitFontSize = (text: string, maxW: number, size: number, minSize: number): number => {
+    doc.setFontSize(size);
+    while (size > minSize && doc.getTextWidth(text) > maxW) doc.setFontSize(size = Math.max(minSize, size - 0.5));
+    return size;
+  };
+
   const runningHeader = () => {
     setText(C.primary);
     doc.setFont('helvetica', 'bold');
@@ -250,8 +313,9 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
     y = 42;
   };
 
-  const sectionTitle = (label: string) => {
-    ensure(14);
+  // keepWith: altura do primeiro bloco de conteúdo — o título nunca fica órfão no fim da página.
+  const sectionTitle = (label: string, keepWith = 10) => {
+    ensure(14 + keepWith);
     setFill(C.primary);
     doc.rect(M, y, 3, 6, 'F');
     setText(C.ink);
@@ -274,14 +338,14 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
   doc.roundedRect(M, y, CONTENT_W, blockH, 2, 2, 'F');
 
   const colW = CONTENT_W / 4;
-  const infoCell = (col: number, row: number, label: string, value: string) => {
+  const infoCell = (col: number, row: number, label: string, value: string, span = 1) => {
     const cx = M + 5 + col * colW;
     const cy = y + 8 + row * 11;
-    const maxW = colW - 8; // não invade a coluna seguinte
+    const maxW = colW * span - 8; // não invade a coluna seguinte
     setText(C.muted);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
-    doc.text(label.toUpperCase(), cx, cy);
+    doc.text(truncate(label.toUpperCase(), maxW), cx, cy);
     setText(C.ink);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
@@ -295,16 +359,16 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
   infoCell(1, 1, 'Data da Avaliação', pdfFormatDate(a.date));
   infoCell(2, 1, 'Avaliação Anterior', prev ? pdfFormatDate(prev.date) : '—');
   infoCell(3, 1, 'Telefone', pdfText(student.phone_number));
-  infoCell(0, 2, 'Objetivo', pdfText(student.goal));
-  infoCell(2, 2, 'Status LGPD', getLgpdStatusLabel(student.lgpd_consent_status));
+  infoCell(0, 2, 'Objetivo', pdfText(student.goal), 2); // ocupa as colunas 0–1 (a 1 está livre)
+  infoCell(2, 2, 'Status LGPD', getLgpdStatusLabel(student.lgpd_consent_status), 2);
   y += blockH + 6;
 
   // ---- cards de indicadores principais ----
-  sectionTitle('Indicadores Principais');
-
   const cardGap = 4;
   const cardW = (CONTENT_W - cardGap * 2) / 3;
   const cardH = 24;
+
+  sectionTitle('Indicadores Principais', cardH * 2 + cardGap);
 
   interface MetricCard {
     label: string; value: string; unit: string;
@@ -329,34 +393,52 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
     setText(C.muted);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
-    doc.text(m.label.toUpperCase(), cx + 5, cy + 6);
+    const innerW = cardW - 9; // área útil do card (após a faixa colorida e padding)
+    doc.text(truncate(m.label.toUpperCase(), innerW), cx + 5, cy + 6);
 
+    // Mede a unidade na fonte DELA e o valor na fonte DELE (antes media o valor
+    // já com a fonte 8pt da unidade → unidade desenhada em cima do número).
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    const unitW = m.unit ? doc.getTextWidth(m.unit) + 1.5 : 0;
     setText(C.ink);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.text(m.value, cx + 5, cy + 14);
+    let valueSize = 16;
+    doc.setFontSize(valueSize);
+    while (valueSize > 9 && doc.getTextWidth(m.value) + unitW > innerW) doc.setFontSize(--valueSize);
+    const valueTxt = truncate(m.value, innerW - unitW);
+    const vw = doc.getTextWidth(valueTxt);
+    doc.text(valueTxt, cx + 5, cy + 14);
     if (m.unit) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       setText(C.faint);
-      const vw = doc.getTextWidth(m.value);
       doc.text(m.unit, cx + 5 + vw + 1.5, cy + 14);
     }
 
+    // Variação tem prioridade de espaço; a classificação é truncada no que sobra.
+    const showDelta = !!m.delta && m.delta.text !== '—' && m.delta.dir !== 'flat';
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    const deltaTxt = showDelta ? truncate(m.delta!.text, innerW) : '';
+    const deltaW = showDelta ? doc.getTextWidth(deltaTxt) : 0;
     let subX = cx + 5;
     if (m.sub) {
       setText(C.muted);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
-      const subTxt = truncate(m.sub, cardW - 10);
-      doc.text(subTxt, subX, cy + 20);
-      subX += doc.getTextWidth(subTxt) + 3;
+      const subMax = innerW - (showDelta ? deltaW + 3 : 0);
+      if (subMax > 4) {
+        const subTxt = truncate(m.sub, subMax);
+        doc.text(subTxt, subX, cy + 20);
+        subX += doc.getTextWidth(subTxt) + 3;
+      }
     }
-    if (m.delta && m.delta.text !== '—' && m.delta.dir !== 'flat') {
+    if (showDelta) {
       setText(toneColor(pdfDeltaTone(m.delta, m.improve)));
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7.5);
-      doc.text(`${m.delta.text}`, subX, cy + 20);
+      doc.text(deltaTxt, subX, cy + 20);
     }
   };
 
@@ -383,11 +465,11 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
   ) => {
     setFill(C.white); setDraw(C.line); doc.setLineWidth(0.3);
     doc.roundedRect(x, gy, w, h, 2, 2, 'FD');
+    const lx = x + w - 48;
     setText(C.ink); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
-    doc.text(title, x + 4, gy + 6);
+    doc.text(truncate(title, lx - x - 8), x + 4, gy + 6);
 
     // legenda
-    const lx = x + w - 48;
     setFill(C.grayBar); doc.rect(lx, gy + 3, 3, 3, 'F');
     setText(C.muted); doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5);
     doc.text('Anterior', lx + 4, gy + 5.5);
@@ -420,8 +502,11 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
         const bh = Math.max((val / localMax) * (ph - 4), 0.5);
         setFill(color);
         doc.rect(bx, py + ph - bh, barW, bh, 'F');
-        setText(C.ink); doc.setFont('helvetica', 'bold'); doc.setFontSize(6);
-        doc.text(val.toFixed(1), bx + barW / 2, py + ph - bh - 1.2, { align: 'center' });
+        setText(C.ink); doc.setFont('helvetica', 'bold');
+        // rótulo cabe na largura da barra + metade do vão (não encosta no vizinho)
+        const valTxt = val.toFixed(1);
+        fitFontSize(valTxt, barW + 1.4, 6, 4);
+        doc.text(truncate(valTxt, barW + 1.4), bx + barW / 2, py + ph - bh - 1.2, { align: 'center' });
       };
       drawBar(startX, prv, C.grayBar);
       drawBar(startX + barW + 2, cur, C.primary);
@@ -440,11 +525,10 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
   ) => {
     setFill(C.white); setDraw(C.line); doc.setLineWidth(0.3);
     doc.roundedRect(x, gy, w, h, 2, 2, 'FD');
+    // unidade vai no título (antes ficava no rodapé do gráfico, em cima das datas)
+    const fullTitle = unit && !title.includes(unit) ? `${title} (${unit})` : title;
     setText(C.ink); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
-    doc.text(title, x + 4, gy + 6);
-
-    const padL = 12, padR = 5, padT = 10, padB = 9;
-    const px = x + padL, py = gy + padT, pw = w - padL - padR, ph = h - padT - padB;
+    doc.text(truncate(fullTitle, w - 8), x + 4, gy + 6);
 
     if (points.length === 0) {
       setText(C.faint); doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
@@ -452,41 +536,102 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
       return;
     }
 
+    // Escala "bonita": faixa mínima (evita eixo degenerado com valores quase iguais,
+    // que gerava ticks repetidos tipo 49.3/49.3/49.2) e passo 1/2/2.5/5 × 10^k.
     const vals = points.map(p => p.v);
-    let min = Math.min(...vals), max = Math.max(...vals);
-    if (min === max) { min -= 1; max += 1; }
-    const range = max - min || 1;
+    let lo = Math.min(...vals), hi = Math.max(...vals);
+    const minSpan = Math.max(Math.abs(hi) * 0.02, 1);
+    if (hi - lo < minSpan) { const mid = (lo + hi) / 2; lo = mid - minSpan / 2; hi = mid + minSpan / 2; }
+    const rawStep = (hi - lo) / 2;
+    const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const f = rawStep / mag;
+    const step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * mag;
+    const t0 = Math.floor(lo / step + 1e-9) * step;
+    const t1 = Math.ceil(hi / step - 1e-9) * step;
+    const range = t1 - t0;
+    let dec = 0;
+    while (dec < 3 && Math.abs(step * 10 ** dec - Math.round(step * 10 ** dec)) > 1e-6) dec++;
+    const ticks: number[] = [];
+    for (let t = t0; t <= t1 + step / 2; t += step) ticks.push(t);
+
+    // margem esquerda conforme a largura real dos rótulos do eixo Y
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6);
+    const tickW = Math.max(...ticks.map(t => doc.getTextWidth(t.toFixed(dec))));
+    const padL = Math.max(8, tickW + 4), padR = 4, padT = 12, padB = 11;
+    const px = x + padL, py = gy + padT, pw = w - padL - padR, ph = h - padT - padB;
+    const inset = 4; // pontos afastados das bordas do plot (rótulos não invadem o eixo Y)
 
     // gridlines + labels Y
     setDraw(C.line); doc.setLineWidth(0.2);
-    setText(C.faint); doc.setFont('helvetica', 'normal'); doc.setFontSize(6);
-    for (let k = 0; k <= 2; k++) {
-      const yy = py + (ph * k) / 2;
-      const val = max - (range * k) / 2;
+    setText(C.faint);
+    ticks.forEach((t, k) => {
+      const yy = py + ph - (ph * k) / (ticks.length - 1);
       doc.line(px, yy, px + pw, yy);
-      doc.text(val.toFixed(1), px - 1.5, yy + 1.5, { align: 'right' });
-    }
+      doc.text(t.toFixed(dec), px - 1.5, yy + 0.8, { align: 'right' });
+    });
 
     const n = points.length;
-    const xat = (i: number) => (n === 1 ? px + pw / 2 : px + (pw * i) / (n - 1));
-    const yat = (v: number) => py + ph - ((v - min) / range) * ph;
+    const xat = (i: number) => (n === 1 ? px + pw / 2 : px + inset + ((pw - inset * 2) * i) / (n - 1));
+    const yat = (v: number) => py + ph - ((v - t0) / range) * ph;
 
     // linha
     setDraw(color); doc.setLineWidth(0.7);
     for (let i = 1; i < n; i++) {
       doc.line(xat(i - 1), yat(points[i - 1].v), xat(i), yat(points[i].v));
     }
-    // pontos + rótulos
-    points.forEach((p, i) => {
-      setFill(color);
-      doc.circle(xat(i), yat(p.v), 1, 'F');
-      setText(C.ink); doc.setFont('helvetica', 'bold'); doc.setFontSize(6);
-      doc.text(p.v.toFixed(1), xat(i), yat(p.v) - 2, { align: 'center' });
-      setText(C.muted); doc.setFont('helvetica', 'normal'); doc.setFontSize(5.8);
-      doc.text(p.label, xat(i), py + ph + 5, { align: 'center' });
-    });
-    setText(C.faint); doc.setFontSize(6);
-    doc.text(unit, px, gy + h - 1);
+    points.forEach((p, i) => { setFill(color); doc.circle(xat(i), yat(p.v), 1, 'F'); });
+
+    // Rótulos sem colisão: prioridade ao último e ao primeiro ponto; cada rótulo
+    // tenta acima do ponto (abaixo, se for um "vale"), depois o outro lado; não
+    // cobre outros rótulos nem marcadores; se nenhum lado couber, é omitido.
+    type Box = { x1: number; y1: number; x2: number; y2: number };
+    const placed: Box[] = [];
+    const markers: Box[] = points.map((p, i) => ({ x1: xat(i) - 1, x2: xat(i) + 1, y1: yat(p.v) - 1, y2: yat(p.v) + 1 }));
+    const hits = (b: Box) =>
+      placed.some(o => b.x1 < o.x2 + 1 && o.x1 < b.x2 + 1 && b.y1 < o.y2 + 0.3 && o.y1 < b.y2 + 0.3) ||
+      markers.some(o => b.x1 < o.x2 && o.x1 < b.x2 && b.y1 < o.y2 && o.y1 < b.y2);
+    const order = [n - 1, 0, ...points.map((_, i) => i).slice(1, -1)].filter((v, i, arr) => arr.indexOf(v) === i);
+    const fsMm = (size: number) => (size * 25.4) / 72;
+    const valH = fsMm(6);
+    const dateBase = py + ph + 7;
+    const bandTop = gy + 8, bandBottom = dateBase - fsMm(5.8) * 0.9 - 0.6; // abaixo do título, acima das datas
+    const valLabels: { txt: string; cx: number; base: number; b: Box }[] = [];
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6);
+    for (const i of order) {
+      const txt = points[i].v.toFixed(1);
+      const tw = doc.getTextWidth(txt);
+      const cx = Math.min(Math.max(xat(i), px + 0.5 + tw / 2), px + pw - tw / 2);
+      const yp = yat(points[i].v);
+      const nb = [points[i - 1]?.v, points[i + 1]?.v].filter((v): v is number => v !== undefined);
+      const valley = nb.length > 0 && points[i].v < Math.min(...nb);
+      const above = yp - 1.6, below = yp + 1.6 + valH * 0.9;
+      for (const base of valley ? [below, above] : [above, below]) {
+        const b = { x1: cx - tw / 2, x2: cx + tw / 2, y1: base - valH * 0.9, y2: base + valH * 0.21 };
+        if (b.y1 >= bandTop && b.y2 <= bandBottom && !hits(b)) {
+          placed.push(b);
+          valLabels.push({ txt, cx, base, b });
+          break;
+        }
+      }
+    }
+    // fundo branco sob o rótulo: a linha do gráfico não risca o número
+    setFill(C.white);
+    valLabels.forEach(l => doc.rect(l.b.x1 - 0.3, l.b.y1, l.b.x2 - l.b.x1 + 0.6, l.b.y2 - l.b.y1, 'F'));
+    setText(C.ink);
+    valLabels.forEach(l => doc.text(l.txt, l.cx, l.base, { align: 'center' }));
+
+    // datas no eixo X (mesma regra de prioridade/colisão)
+    const dates: Box[] = [];
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(5.8);
+    setText(C.muted);
+    for (const i of order) {
+      const tw = doc.getTextWidth(points[i].label);
+      const cx = Math.min(Math.max(xat(i), px + tw / 2), px + pw - tw / 2);
+      const b = { x1: cx - tw / 2, x2: cx + tw / 2, y1: 0, y2: 1 };
+      if (dates.some(o => b.x1 < o.x2 + 1 && o.x1 < b.x2 + 1)) continue;
+      dates.push(b);
+      doc.text(points[i].label, cx, dateBase, { align: 'center' });
+    }
   };
 
   // monta dados dos gráficos
@@ -494,7 +639,7 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
   const half = (CONTENT_W - 4) / 2;
 
   // barras comparativas
-  sectionTitle('Comparativo — Atual vs. Avaliação Anterior');
+  sectionTitle('Comparativo — Atual vs. Avaliação Anterior', chartH + 2);
   ensure(chartH + 2);
   drawBarChart(M, y, CONTENT_W, chartH, 'Composição Corporal', [
     { label: 'Peso (kg)', cur: bio?.weight_kg, prev: pbio?.weight_kg },
@@ -514,7 +659,7 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
     .map(h => ({ label: pdfShortDate(h.date), v: h.body_fat_percentage }))
     .filter(p => p.v !== null && p.v !== undefined && !Number.isNaN(p.v)) as { label: string; v: number }[];
 
-  sectionTitle('Evolução Histórica');
+  sectionTitle('Evolução Histórica', chartH + 2);
   ensure(chartH + 2);
   drawLineChart(M, y, half, chartH, 'Peso', 'kg', weightPts, C.primary);
   drawLineChart(M + half + 4, y, half, chartH, '% Gordura Corporal', '%', fatPts, C.red);
@@ -524,69 +669,106 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
   interface Row { label: string; cur: string; prevVal?: string; delta?: DeltaInfo; improve?: ImproveDir; }
 
   const drawTable = (title: string, rows: Row[], showCompare: boolean) => {
-    sectionTitle(title);
-
     const cLabel = M + 3;
     const cCur = showCompare ? M + CONTENT_W * 0.50 : M + CONTENT_W * 0.42;
     const cPrev = M + CONTENT_W * 0.69;
     const cDelta = M + CONTENT_W * 0.86;
+    const colEnd = PAGE_W - M - 1;
+    // Largura útil de cada coluna: TODO texto é quebrado/truncado nela (nada invade a vizinha).
+    const wLabel = cCur - cLabel - 3;
+    const wCur = (showCompare ? cPrev : colEnd) - cCur - 3;
+    const wPrev = cDelta - cPrev - 3;
+    const wDelta = colEnd - cDelta;
     const baseH = 7;
     const lineH = 4.2;
-    const valueMaxW = (PAGE_W - M) - cCur - 2;
+    const pad = 2.8;
+    const textY = 4.7;
 
-    // cabeçalho
-    setFill(C.primaryDark);
-    doc.rect(M, y, CONTENT_W, baseH, 'F');
-    setText(C.white);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.text('PARÂMETRO', cLabel, y + 4.7);
-    doc.text('ATUAL', cCur, y + 4.7);
-    if (showCompare) {
-      doc.text('ANTERIOR', cPrev, y + 4.7);
-      doc.text('VARIAÇÃO', cDelta, y + 4.7);
-    }
-    y += baseH;
+    // Quebra o texto na largura da coluna (linhas longas sem espaço são truncadas).
+    const wrap = (text: string, maxW: number, style: 'normal' | 'bold'): string[] => {
+      doc.setFont('helvetica', style);
+      doc.setFontSize(8.5);
+      return (doc.splitTextToSize(text, maxW) as string[]).map(ln => truncate(ln, maxW));
+    };
+    const cells = rows.map(r => ({
+      label: wrap(r.label, wLabel, 'normal'),
+      cur: wrap(r.cur, wCur, 'bold'),
+      prev: showCompare ? wrap(r.prevVal ?? '—', wPrev, 'normal') : [],
+    }));
+    const lineCount = (c: typeof cells[number]) => Math.max(c.label.length, c.cur.length, c.prev.length, 1);
+    const segH = (lines: number) => Math.max(baseH, lines * lineH + pad);
+
+    const drawHeader = () => {
+      setFill(C.primaryDark);
+      doc.rect(M, y, CONTENT_W, baseH, 'F');
+      setText(C.white);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.text(truncate('PARÂMETRO', wLabel), cLabel, y + textY);
+      doc.text(truncate('ATUAL', wCur), cCur, y + textY);
+      if (showCompare) {
+        doc.text(truncate('ANTERIOR', wPrev), cPrev, y + textY);
+        doc.text(truncate('VARIAÇÃO', wDelta), cDelta, y + textY);
+      }
+      y += baseH;
+    };
+    // nova página no meio da tabela: repete o cabeçalho das colunas
+    const breakPage = () => {
+      ensure(Number.POSITIVE_INFINITY);
+      drawHeader();
+    };
+
+    // título + cabeçalho + 1ª linha sempre na mesma página
+    const firstLines = cells.length ? Math.min(lineCount(cells[0]), 3) : 0;
+    sectionTitle(title, baseH + segH(firstLines));
+    drawHeader();
 
     rows.forEach((r, i) => {
-      // quebra de linha do valor (campos de texto longos)
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8.5);
-      const valueLines: string[] = showCompare
-        ? [r.cur]
-        : doc.splitTextToSize(r.cur, valueMaxW);
-      const rowH = Math.max(baseH, valueLines.length * lineH + 2.8);
-
-      ensure(rowH);
-
-      if (i % 2 === 1) {
-        setFill(C.zebra);
-        doc.rect(M, y, CONTENT_W, rowH, 'F');
-      }
-
-      setText(C.ink);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.5);
-      doc.text(truncate(r.label, cCur - cLabel - 2), cLabel, y + 4.7);
-
-      doc.setFont('helvetica', 'bold');
-      setText(C.ink);
-      valueLines.forEach((ln, li) => doc.text(ln, cCur, y + 4.7 + li * lineH));
-
-      if (showCompare) {
-        doc.setFont('helvetica', 'normal');
-        setText(C.muted);
-        doc.text(r.prevVal ?? '—', cPrev, y + 4.7);
-        if (r.delta && r.delta.text !== '—' && r.delta.dir !== 'flat') {
-          setText(toneColor(pdfDeltaTone(r.delta, r.improve ?? 'neutral')));
-          doc.setFont('helvetica', 'bold');
-          doc.text(r.delta.text, cDelta, y + 4.7);
-        } else {
-          setText(C.faint);
-          doc.text('—', cDelta, y + 4.7);
+      const c = cells[i];
+      const total = lineCount(c);
+      let from = 0;
+      while (from < total) {
+        let fit = Math.floor((BOTTOM_LIMIT - y - pad) / lineH);
+        // linha curta não é partida entre páginas; linha muito longa é fatiada
+        if (fit < 1 || (from === 0 && fit < Math.min(total, 3))) {
+          breakPage();
+          fit = Math.floor((BOTTOM_LIMIT - y - pad) / lineH);
         }
+        const cnt = Math.min(total - from, Math.max(fit, 1));
+        const h = segH(cnt);
+
+        if (i % 2 === 1) {
+          setFill(C.zebra);
+          doc.rect(M, y, CONTENT_W, h, 'F');
+        }
+        const col = (lines: string[], cx: number) =>
+          lines.slice(from, from + cnt).forEach((ln, li) => doc.text(ln, cx, y + textY + li * lineH));
+
+        setText(C.ink);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+        col(c.label, cLabel);
+        doc.setFont('helvetica', 'bold');
+        col(c.cur, cCur);
+
+        if (showCompare) {
+          doc.setFont('helvetica', 'normal');
+          setText(C.muted);
+          col(c.prev, cPrev);
+          if (from === 0) {
+            if (r.delta && r.delta.text !== '—' && r.delta.dir !== 'flat') {
+              setText(toneColor(pdfDeltaTone(r.delta, r.improve ?? 'neutral')));
+              doc.setFont('helvetica', 'bold');
+              doc.text(truncate(r.delta.text, wDelta), cDelta, y + textY);
+            } else {
+              setText(C.faint);
+              doc.text('—', cDelta, y + textY);
+            }
+          }
+        }
+        y += h;
+        from += cnt;
       }
-      y += rowH;
     });
     setDraw(C.line);
     doc.setLineWidth(0.3);
@@ -697,7 +879,7 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
   // ======================= OBSERVAÇÕES DO RELATÓRIO =======================
   const obs = (data.observacoes ?? '').trim();
   if (obs) {
-    sectionTitle('Observações');
+    sectionTitle('Observações', 5);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9.5);
     setText(C.ink);
@@ -715,7 +897,8 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
   }
 
   // ======================= EVOLUÇÃO VISUAL (FOTOS) =======================
-  const photos = pdfUpToDate(data.photos ?? [], a.date); // ignora fotos posteriores à avaliação
+  // Fotos são tiradas dias depois da avaliação: atribui cada uma à avaliação mais próxima (ver pdfSelectPhotos)
+  const photos = data.photos ?? [];
   if (photos.length > 0) {
     // Ordem de exibição dos ângulos
     const ANGLE_ORDER = ['FRENTE', 'LADO_DIREITO', 'LADO_ESQUERDO', 'COSTAS', 'PERFIL'];
@@ -724,12 +907,16 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
       LADO_ESQUERDO: 'Lado Esquerdo', COSTAS: 'Costas', PERFIL: 'Lateral',
     };
 
-    // Agrupa por ângulo: foto mais antiga e mais recente
-    const byCategory = new Map<string, { oldest: PdfPhoto; newest: PdfPhoto }>();
+    // Agrupa por ângulo: Início (avaliações anteriores) e Recente (avaliação exportada)
+    const assessmentDates = (student.avaliacoes ?? []).filter(av => !av.deleted_at).map(av => av.date);
+    const selected = pdfSelectPhotos(photos, assessmentDates, a.date);
+    const byCategory = new Map<string, { oldest: PdfPhoto; newest: PdfPhoto; single: boolean }>();
     for (const cat of ANGLE_ORDER) {
-      const group = photos.filter(p => p.category === cat).sort((a, b) => a.date.localeCompare(b.date));
-      if (group.length > 0) {
-        byCategory.set(cat, { oldest: group[0], newest: group[group.length - 1] });
+      const sel = selected.get(cat);
+      const oldest = sel?.inicio ?? sel?.recente;
+      const newest = sel?.recente ?? sel?.inicio;
+      if (oldest && newest) {
+        byCategory.set(cat, { oldest, newest, single: !sel?.inicio || !sel?.recente });
       }
     }
 
@@ -748,58 +935,63 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
 
       const IMG_W = 80;
       const IMG_H = 100;
-      const SECTION_H = 7 + IMG_H + 8; // label + image + gap
+      // Linhas próprias (sem dividir a mesma faixa): ângulo → Início/Recente → foto → data
+      const LABEL_Y = 5, CAPTION_Y = 10, IMG_TOP = 12;
+      const SECTION_H = IMG_TOP + IMG_H + 9; // rótulos + foto + data + respiro
 
-      for (const [cat, { oldest, newest }] of byCategory.entries()) {
-        // Nova página se não couber
+      // Foto proporcional (sem distorcer) dentro da caixa IMG_W×IMG_H, centrada na horizontal;
+      // a data fica logo abaixo da foto desenhada.
+      const drawPhoto = (photo: PdfPhoto, bx: number, by: number) => {
+        let w = IMG_W, h = IMG_H;
+        try {
+          const props = doc.getImageProperties(photo.dataUrl);
+          const s = Math.min(IMG_W / props.width, IMG_H / props.height);
+          w = props.width * s;
+          h = props.height * s;
+          doc.addImage(photo.dataUrl, props.fileType, bx + (IMG_W - w) / 2, by, w, h);
+        } catch { /* imagem inválida, ignora */ }
+        setText(C.muted);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.text(pdfFormatDate(photo.date), bx + IMG_W / 2, by + h + 4, { align: 'center' });
+      };
+      const caption = (txt: string, bx: number, cy: number) => {
+        setText(C.muted);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.text(txt, bx + IMG_W / 2, cy, { align: 'center' });
+      };
+
+      for (const [cat, { oldest, newest, single }] of byCategory.entries()) {
+        // Nova página se não couber (com o cabeçalho corrido, como nas demais páginas)
         if (py + SECTION_H > BOTTOM_LIMIT) {
           doc.addPage();
-          py = M;
+          runningHeader();
+          py = y;
         }
 
         // Rótulo do ângulo
         setText(C.ink);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(9);
-        doc.text(ANGLE_LABEL[cat] ?? cat, M, py + 5);
-        py += 7;
+        doc.text(ANGLE_LABEL[cat] ?? cat, M, py + LABEL_Y);
 
-        const isSame = oldest.date === newest.date;
-        const centerX = M + CONTENT_W / 2;
-
-        if (isSame) {
-          // Só 1 foto — exibir centralizada
-          const imgX = centerX - IMG_W / 2;
-          try {
-            doc.addImage(oldest.dataUrl, 'JPEG', imgX, py, IMG_W, IMG_H);
-          } catch { /* imagem inválida, ignora */ }
-          setText(C.muted);
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(7.5);
-          doc.text(pdfFormatDate(oldest.date), imgX + IMG_W / 2, py + IMG_H + 4, { align: 'center' });
+        if (single) {
+          // Só 1 foto — exibir centralizada, indicando se é a do início ou a recente
+          const imgX = M + (CONTENT_W - IMG_W) / 2;
+          caption(selected.get(cat)?.recente ? 'Recente' : 'Início', imgX, py + CAPTION_Y);
+          drawPhoto(oldest, imgX, py + IMG_TOP);
         } else {
           // 2 fotos: Início (esquerda) e Recente (direita)
-          const gap = CONTENT_W - 2 * IMG_W;
           const leftX = M;
-          const rightX = M + IMG_W + gap;
-
-          setText(C.muted);
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7.5);
-          doc.text('Início', leftX + IMG_W / 2, py - 1, { align: 'center' });
-          doc.text('Recente', rightX + IMG_W / 2, py - 1, { align: 'center' });
-
-          try { doc.addImage(oldest.dataUrl, 'JPEG', leftX, py, IMG_W, IMG_H); } catch { /* ignora */ }
-          try { doc.addImage(newest.dataUrl, 'JPEG', rightX, py, IMG_W, IMG_H); } catch { /* ignora */ }
-
-          setText(C.muted);
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(7.5);
-          doc.text(pdfFormatDate(oldest.date), leftX + IMG_W / 2, py + IMG_H + 4, { align: 'center' });
-          doc.text(pdfFormatDate(newest.date), rightX + IMG_W / 2, py + IMG_H + 4, { align: 'center' });
+          const rightX = PAGE_W - M - IMG_W;
+          caption('Início', leftX, py + CAPTION_Y);
+          caption('Recente', rightX, py + CAPTION_Y);
+          drawPhoto(oldest, leftX, py + IMG_TOP);
+          drawPhoto(newest, rightX, py + IMG_TOP);
         }
 
-        py += IMG_H + 8;
+        py += SECTION_H;
       }
     }
   }
@@ -814,8 +1006,11 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
     setText(C.faint);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
-    doc.text(`Personal Trainer: ${pdfText(trainerName)}`, M, FOOTER_Y);
-    doc.text('FocusPT — Documento gerado automaticamente', PAGE_W / 2, FOOTER_Y, { align: 'center' });
+    // nome do personal truncado antes do texto central (sem colisão com nomes longos)
+    const centerTxt = 'FocusPT — Documento gerado automaticamente';
+    const trainerMaxW = PAGE_W / 2 - doc.getTextWidth(centerTxt) / 2 - 3 - M;
+    doc.text(truncate(`Personal Trainer: ${pdfText(trainerName)}`, trainerMaxW), M, FOOTER_Y);
+    doc.text(centerTxt, PAGE_W / 2, FOOTER_Y, { align: 'center' });
     doc.text(`Página ${p} de ${pageCount}`, PAGE_W - M, FOOTER_Y, { align: 'right' });
   }
 
