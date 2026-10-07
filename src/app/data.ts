@@ -68,15 +68,15 @@ export interface Circumferences {
 export interface Skinfolds {
   protocol?: string;
   triceps_mm: number;
-  biceps_mm: number;
+  biceps_mm?: number | null;     // opcional — não entra no JP7
   subscapular_mm: number;
   chest_mm: number;
   midaxillary_mm: number;
   suprailiac_mm: number;
   abdominal_mm: number;
   mid_thigh_mm: number;
-  calf_mm: number;
-  sum_mm?: number;
+  calf_mm?: number | null;       // opcional — não entra no JP7
+  sum_mm?: number;                // somatório das 7 dobras do JP7
   fat_percentage?: number;
 }
 

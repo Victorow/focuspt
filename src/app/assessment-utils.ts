@@ -47,3 +47,17 @@ export function toOptionalBoolean(value: string | null | undefined): boolean | u
   if (value === null || value === undefined || value === '') return undefined;
   return value === 'true';
 }
+
+/**
+ * Tom visual da classificação do % de gordura (bioimpedância Omron: Baixo/Normal/Alto/Muito Alto).
+ * 'Baixo' não é "excelente" → tom de alerta; Normal → bom; Alto → alerta; Muito Alto → ruim.
+ */
+export function fatClassificationTone(label: string | null | undefined): 'good' | 'warn' | 'bad' | 'neutral' {
+  switch ((label ?? '').trim().toLowerCase()) {
+    case 'normal': return 'good';
+    case 'baixo':
+    case 'alto': return 'warn';
+    case 'muito alto': return 'bad';
+    default: return 'neutral';
+  }
+}

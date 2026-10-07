@@ -33,13 +33,40 @@ export function pdfShortDate(dateStr: string | null | undefined): string {
   return m ? `${m[3]}/${m[2]}` : '—';
 }
 
-/** Idade em anos a partir da data de nascimento. */
-export function pdfAgeFromBirth(birthDate: string, ref: Date): number {
-  const b = new Date(birthDate);
-  let age = ref.getFullYear() - b.getFullYear();
-  const monthDiff = ref.getMonth() - b.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && ref.getDate() < b.getDate())) age--;
+/** Extrai {y, m, d} de 'YYYY-MM-DD' (string) ou dos campos LOCAIS de um Date — sem conversão UTC. */
+function pdfYmd(value: string | Date): { y: number; m: number; d: number } | null {
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return null;
+    return { y: value.getFullYear(), m: value.getMonth() + 1, d: value.getDate() };
+  }
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value ?? '');
+  return match ? { y: +match[1], m: +match[2], d: +match[3] } : null;
+}
+
+/**
+ * Idade em anos na data de referência (ex: data da avaliação).
+ * Lê Y/M/D direto da string para evitar o bug de fuso (new Date('YYYY-MM-DD') é UTC → dia anterior no Brasil).
+ */
+export function pdfAgeFromBirth(birthDate: string, ref: string | Date): number {
+  const b = pdfYmd(birthDate);
+  const r = pdfYmd(ref);
+  if (!b || !r) return NaN;
+  let age = r.y - b.y;
+  if (r.m < b.m || (r.m === b.m && r.d < b.d)) age--;
   return age;
+}
+
+/** Date → 'DD/MM/YYYY' usando campos locais (toISOString() vira o dia seguinte após 21h no Brasil). */
+export function pdfFormatLocalDate(dt: Date): string {
+  const p2 = (n: number) => String(n).padStart(2, '0');
+  return `${p2(dt.getDate())}/${p2(dt.getMonth() + 1)}/${dt.getFullYear()}`;
+}
+
+/** Mantém só itens com data (YYYY-MM-DD) <= referência — o relatório não mostra o "futuro" da avaliação exportada. */
+export function pdfUpToDate<T extends { date: string }>(items: T[], refDate: string | null | undefined): T[] {
+  if (!refDate) return [...items];
+  const ref = refDate.slice(0, 10);
+  return items.filter(i => (i.date ?? '').slice(0, 10) <= ref);
 }
 
 export function pdfGenderLabel(g: 'MALE' | 'FEMALE'): string {
@@ -69,7 +96,8 @@ export function pdfProtocolLabel(protocol: string | null | undefined): string {
   if (!protocol) return '—';
   const map: Record<string, string> = {
     '7_dobras': '7 Dobras (Jackson & Pollock)',
-    '3_dobras': '3 Dobras (Jackson & Pollock)',
+    '3_dobras_masc': '3 Dobras Masc. (Jackson & Pollock)',
+    '3_dobras_fem': '3 Dobras Fem. (Jackson & Pollock)',
   };
   return map[protocol] ?? protocol;
 }
@@ -98,6 +126,16 @@ export function pdfDelta(
   if (rounded === 0) return { text: '0', dir: 'flat' };
   const sign = rounded > 0 ? '+' : '';
   return { text: `${sign}${rounded.toFixed(digits)}`, dir: rounded > 0 ? 'up' : 'down' };
+}
+
+/** Sentido de melhora de um indicador: 'down' = menor é melhor; 'up' = maior é melhor; 'neutral' = sem juízo. */
+export type ImproveDir = 'up' | 'down' | 'neutral';
+
+/** Tom da variação conforme o sentido de melhora (neutral quando não há juízo ou não houve variação). */
+export function pdfDeltaTone(delta: DeltaInfo | undefined, improve: ImproveDir | undefined): 'good' | 'bad' | 'neutral' {
+  if (!delta || delta.text === '—' || delta.dir === 'flat') return 'neutral';
+  if (!improve || improve === 'neutral') return 'neutral';
+  return delta.dir === improve ? 'good' : 'bad';
 }
 
 // =====================================================================
@@ -207,7 +245,7 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
     setText([191, 219, 254]);
-    doc.text(`Emitido em ${pdfFormatDate(generatedAt.toISOString())}`, PAGE_W - M, 20, { align: 'right' });
+    doc.text(`Emitido em ${pdfFormatLocalDate(generatedAt)}`, PAGE_W - M, 20, { align: 'right' });
 
     y = 42;
   };
@@ -230,7 +268,7 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
   mainHeader();
 
   // ---- bloco de dados do aluno (3 linhas, sem sobreposição) ----
-  const age = pdfAgeFromBirth(student.birth_date, generatedAt);
+  const age = pdfAgeFromBirth(student.birth_date, a.date); // idade na data da avaliação
   const blockH = 38;
   setFill(C.cardBg);
   doc.roundedRect(M, y, CONTENT_W, blockH, 2, 2, 'F');
@@ -270,8 +308,10 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
 
   interface MetricCard {
     label: string; value: string; unit: string;
-    sub?: string; delta?: DeltaInfo; improve?: 'down' | 'up' | 'neutral';
+    sub?: string; delta?: DeltaInfo; improve?: ImproveDir;
   }
+
+  const toneColor = (t: 'good' | 'bad' | 'neutral') => (t === 'good' ? C.green : t === 'bad' ? C.red : C.muted);
 
   const drawCard = (idx: number, m: MetricCard) => {
     const row = Math.floor(idx / 3);
@@ -313,13 +353,7 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
       subX += doc.getTextWidth(subTxt) + 3;
     }
     if (m.delta && m.delta.text !== '—' && m.delta.dir !== 'flat') {
-      let dc = C.muted;
-      if (m.improve && m.improve !== 'neutral') {
-        const good = (m.improve === 'down' && m.delta.dir === 'down') ||
-                     (m.improve === 'up' && m.delta.dir === 'up');
-        dc = good ? C.green : C.red;
-      }
-      setText(dc);
+      setText(toneColor(pdfDeltaTone(m.delta, m.improve)));
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7.5);
       doc.text(`${m.delta.text}`, subX, cy + 20);
@@ -331,7 +365,7 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
   const cards: MetricCard[] = [
     { label: 'Peso', value: pdfFormatNumber(bio?.weight_kg), unit: 'kg', delta: pdfDelta(bio?.weight_kg, pbio?.weight_kg), improve: 'neutral' },
     { label: 'IMC', value: pdfFormatNumber(a.bmi), unit: '', sub: pdfText(a.bmi_classification), delta: pdfDelta(a.bmi, prev?.bmi), improve: 'neutral' },
-    { label: '% Gordura', value: pdfFormatNumber(a.body_fat_percentage), unit: '%', sub: pdfText(a.body_fat_classification), delta: pdfDelta(a.body_fat_percentage, prev?.body_fat_percentage), improve: 'down' },
+    { label: '% Gordura (bioimp.)', value: pdfFormatNumber(a.body_fat_percentage), unit: '%', sub: pdfText(a.body_fat_classification), delta: pdfDelta(a.body_fat_percentage, prev?.body_fat_percentage), improve: 'down' },
     { label: 'Massa Magra', value: pdfFormatNumber(a.lean_mass_kg), unit: 'kg', delta: pdfDelta(a.lean_mass_kg, prev?.lean_mass_kg), improve: 'up' },
     { label: 'Idade Corporal', value: pdfFormatNumber(bio?.body_age, 0), unit: 'anos', delta: pdfDelta(bio?.body_age, pbio?.body_age, 0), improve: 'down' },
     { label: 'Gordura Visceral', value: pdfFormatNumber(bio?.visceral_fat_level, 0), unit: '', sub: pdfVisceralLabel(a.visceral_risk), delta: pdfDelta(bio?.visceral_fat_level, pbio?.visceral_fat_level, 0), improve: 'down' },
@@ -464,15 +498,15 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
   ensure(chartH + 2);
   drawBarChart(M, y, CONTENT_W, chartH, 'Composição Corporal', [
     { label: 'Peso (kg)', cur: bio?.weight_kg, prev: pbio?.weight_kg },
-    { label: '% Gordura', cur: a.body_fat_percentage, prev: prev?.body_fat_percentage },
+    { label: '% Gord. (bioimp.)', cur: a.body_fat_percentage, prev: prev?.body_fat_percentage },
     { label: '% Músculo', cur: bio?.skeletal_muscle_percentage, prev: pbio?.skeletal_muscle_percentage },
     { label: 'M. Magra (kg)', cur: a.lean_mass_kg, prev: prev?.lean_mass_kg },
     { label: 'M. Gorda (kg)', cur: a.fat_mass_kg, prev: prev?.fat_mass_kg },
   ]);
   y += chartH + 8;
 
-  // evolução histórica (todas as avaliações)
-  const history = [...student.avaliacoes].sort((x1, x2) => x1.date.localeCompare(x2.date));
+  // evolução histórica (avaliações até a data da avaliação exportada)
+  const history = pdfUpToDate(student.avaliacoes, a.date).sort((x1, x2) => x1.date.localeCompare(x2.date));
   const weightPts = history
     .map(h => ({ label: pdfShortDate(h.date), v: h.bioimpedancias?.weight_kg }))
     .filter(p => p.v !== null && p.v !== undefined && !Number.isNaN(p.v)) as { label: string; v: number }[];
@@ -487,7 +521,7 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
   y += chartH + 8;
 
   // =================== TABELAS ===================
-  interface Row { label: string; cur: string; prevVal?: string; delta?: DeltaInfo; }
+  interface Row { label: string; cur: string; prevVal?: string; delta?: DeltaInfo; improve?: ImproveDir; }
 
   const drawTable = (title: string, rows: Row[], showCompare: boolean) => {
     sectionTitle(title);
@@ -544,7 +578,7 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
         setText(C.muted);
         doc.text(r.prevVal ?? '—', cPrev, y + 4.7);
         if (r.delta && r.delta.text !== '—' && r.delta.dir !== 'flat') {
-          setText(r.delta.dir === 'up' ? C.amber : C.green);
+          setText(toneColor(pdfDeltaTone(r.delta, r.improve ?? 'neutral')));
           doc.setFont('helvetica', 'bold');
           doc.text(r.delta.text, cDelta, y + 4.7);
         } else {
@@ -562,27 +596,29 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
 
   // ---- Bioimpedância (Omron) ----
   drawTable('Composição Corporal — Bioimpedância (Omron HBF-514C)', [
-    { label: 'Peso (kg)', cur: pdfFormatNumber(bio?.weight_kg), prevVal: pdfFormatNumber(pbio?.weight_kg), delta: pdfDelta(bio?.weight_kg, pbio?.weight_kg) },
-    { label: 'IMC', cur: pdfFormatNumber(a.bmi), prevVal: pdfFormatNumber(prev?.bmi), delta: pdfDelta(a.bmi, prev?.bmi) },
+    { label: 'Peso (kg)', cur: pdfFormatNumber(bio?.weight_kg), prevVal: pdfFormatNumber(pbio?.weight_kg), delta: pdfDelta(bio?.weight_kg, pbio?.weight_kg), improve: 'neutral' },
+    { label: 'IMC', cur: pdfFormatNumber(a.bmi), prevVal: pdfFormatNumber(prev?.bmi), delta: pdfDelta(a.bmi, prev?.bmi), improve: 'neutral' },
     { label: 'Classificação IMC', cur: pdfText(a.bmi_classification), prevVal: pdfText(prev?.bmi_classification) },
-    { label: '% Gordura Corporal', cur: pdfFormatNumber(bio?.body_fat_percentage), prevVal: pdfFormatNumber(pbio?.body_fat_percentage), delta: pdfDelta(bio?.body_fat_percentage, pbio?.body_fat_percentage) },
-    { label: 'Classificação Gordura', cur: pdfText(a.body_fat_classification), prevVal: pdfText(prev?.body_fat_classification) },
-    { label: '% Músculo Esquelético', cur: pdfFormatNumber(bio?.skeletal_muscle_percentage), prevVal: pdfFormatNumber(pbio?.skeletal_muscle_percentage), delta: pdfDelta(bio?.skeletal_muscle_percentage, pbio?.skeletal_muscle_percentage) },
-    { label: 'Metabolismo Basal (kcal)', cur: pdfFormatNumber(bio?.resting_metabolism_kcal, 0), prevVal: pdfFormatNumber(pbio?.resting_metabolism_kcal, 0), delta: pdfDelta(bio?.resting_metabolism_kcal, pbio?.resting_metabolism_kcal, 0) },
-    { label: 'Idade Corporal (anos)', cur: pdfFormatNumber(bio?.body_age, 0), prevVal: pdfFormatNumber(pbio?.body_age, 0), delta: pdfDelta(bio?.body_age, pbio?.body_age, 0) },
-    { label: 'Gordura Visceral (nível)', cur: pdfFormatNumber(bio?.visceral_fat_level, 0), prevVal: pdfFormatNumber(pbio?.visceral_fat_level, 0), delta: pdfDelta(bio?.visceral_fat_level, pbio?.visceral_fat_level, 0) },
+    { label: '% Gordura Corporal', cur: pdfFormatNumber(bio?.body_fat_percentage), prevVal: pdfFormatNumber(pbio?.body_fat_percentage), delta: pdfDelta(bio?.body_fat_percentage, pbio?.body_fat_percentage), improve: 'down' },
+    { label: 'Classificação % Gordura (bioimp. Omron)', cur: pdfText(a.body_fat_classification), prevVal: pdfText(prev?.body_fat_classification) },
+    { label: '% Músculo Esquelético', cur: pdfFormatNumber(bio?.skeletal_muscle_percentage), prevVal: pdfFormatNumber(pbio?.skeletal_muscle_percentage), delta: pdfDelta(bio?.skeletal_muscle_percentage, pbio?.skeletal_muscle_percentage), improve: 'up' },
+    { label: 'Metabolismo Basal (kcal)', cur: pdfFormatNumber(bio?.resting_metabolism_kcal, 0), prevVal: pdfFormatNumber(pbio?.resting_metabolism_kcal, 0), delta: pdfDelta(bio?.resting_metabolism_kcal, pbio?.resting_metabolism_kcal, 0), improve: 'neutral' },
+    { label: 'Idade Corporal (anos)', cur: pdfFormatNumber(bio?.body_age, 0), prevVal: pdfFormatNumber(pbio?.body_age, 0), delta: pdfDelta(bio?.body_age, pbio?.body_age, 0), improve: 'down' },
+    { label: 'Gordura Visceral (nível)', cur: pdfFormatNumber(bio?.visceral_fat_level, 0), prevVal: pdfFormatNumber(pbio?.visceral_fat_level, 0), delta: pdfDelta(bio?.visceral_fat_level, pbio?.visceral_fat_level, 0), improve: 'down' },
     { label: 'Risco Visceral', cur: pdfVisceralLabel(a.visceral_risk), prevVal: prev ? pdfVisceralLabel(prev.visceral_risk) : '—' },
-    { label: '% Água Corporal', cur: pdfFormatNumber(bio?.water_percentage), prevVal: pdfFormatNumber(pbio?.water_percentage), delta: pdfDelta(bio?.water_percentage, pbio?.water_percentage) },
-    { label: 'Massa Gorda (kg)', cur: pdfFormatNumber(a.fat_mass_kg), prevVal: pdfFormatNumber(prev?.fat_mass_kg), delta: pdfDelta(a.fat_mass_kg, prev?.fat_mass_kg) },
-    { label: 'Massa Magra (kg)', cur: pdfFormatNumber(a.lean_mass_kg), prevVal: pdfFormatNumber(prev?.lean_mass_kg), delta: pdfDelta(a.lean_mass_kg, prev?.lean_mass_kg) },
+    { label: '% Água Corporal', cur: pdfFormatNumber(bio?.water_percentage), prevVal: pdfFormatNumber(pbio?.water_percentage), delta: pdfDelta(bio?.water_percentage, pbio?.water_percentage), improve: 'neutral' },
+    { label: 'Massa Gorda (kg)', cur: pdfFormatNumber(a.fat_mass_kg), prevVal: pdfFormatNumber(prev?.fat_mass_kg), delta: pdfDelta(a.fat_mass_kg, prev?.fat_mass_kg), improve: 'down' },
+    { label: 'Massa Magra (kg)', cur: pdfFormatNumber(a.lean_mass_kg), prevVal: pdfFormatNumber(prev?.lean_mass_kg), delta: pdfDelta(a.lean_mass_kg, prev?.lean_mass_kg), improve: 'up' },
     { label: 'Modo Atleta', cur: pdfBoolLabel(bio?.is_athlete), prevVal: pdfBoolLabel(pbio?.is_athlete) },
   ], true);
 
   // ---- Circunferências ----
   const cir = a.circunferencias;
   const pcir = prev?.circunferencias;
-  const cRow = (label: string, key: keyof typeof cir, digits = 1): Row => ({
+  // Circunferências: só cintura/abdômen/RCQ têm sentido de melhora (menor = melhor); demais são neutras.
+  const cRow = (label: string, key: keyof typeof cir, digits = 1, improve: ImproveDir = 'neutral'): Row => ({
     label,
+    improve,
     cur: pdfFormatNumber(cir?.[key] as number, digits),
     prevVal: pdfFormatNumber(pcir?.[key] as number, digits),
     delta: pdfDelta(cir?.[key] as number, pcir?.[key] as number, digits),
@@ -591,8 +627,8 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
     cRow('Pescoço', 'neck_cm'),
     cRow('Ombro', 'shoulder_cm'),
     cRow('Tórax', 'chest_cm'),
-    cRow('Cintura', 'waist_cm'),
-    cRow('Abdômen', 'abdomen_cm'),
+    cRow('Cintura', 'waist_cm', 1, 'down'),
+    cRow('Abdômen', 'abdomen_cm', 1, 'down'),
     cRow('Quadril', 'hip_cm'),
     cRow('Braço D. (relaxado)', 'right_arm_relaxed_cm'),
     cRow('Braço E. (relaxado)', 'left_arm_relaxed_cm'),
@@ -609,7 +645,7 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
     cRow('Panturrilha D.', 'right_calf_cm'),
     cRow('Panturrilha E.', 'left_calf_cm'),
     ...(cir?.bust_cm || pcir?.bust_cm ? [cRow('Busto', 'bust_cm')] : []),
-    { label: 'RCQ (Cintura/Quadril)', cur: pdfFormatNumber(a.rcq, 2), prevVal: pdfFormatNumber(prev?.rcq, 2), delta: pdfDelta(a.rcq, prev?.rcq, 2) },
+    { label: 'RCQ (Cintura/Quadril)', cur: pdfFormatNumber(a.rcq, 2), prevVal: pdfFormatNumber(prev?.rcq, 2), delta: pdfDelta(a.rcq, prev?.rcq, 2), improve: 'down' },
   ], true);
 
   // ---- Saúde Feminina (só quando há dado preenchido) ----
@@ -623,8 +659,10 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
   // ---- Dobras Cutâneas ----
   const sk = a.dobras_cutaneas;
   const psk = prev?.dobras_cutaneas;
+  // Dobras: menor = melhor em todas.
   const sRow = (label: string, key: keyof typeof sk): Row => ({
     label,
+    improve: 'down',
     cur: pdfFormatNumber(sk?.[key] as number),
     prevVal: pdfFormatNumber(psk?.[key] as number),
     delta: pdfDelta(sk?.[key] as number, psk?.[key] as number),
@@ -632,16 +670,17 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
   drawTable('Dobras Cutâneas (mm)', [
     { label: 'Protocolo', cur: pdfProtocolLabel(sk?.protocol), prevVal: pdfProtocolLabel(psk?.protocol) },
     sRow('Tríceps', 'triceps_mm'),
-    sRow('Bíceps', 'biceps_mm'),
+    // Bíceps e Panturrilha são opcionais (fora do JP7): só aparecem se houver valor.
+    ...(sk?.biceps_mm != null || psk?.biceps_mm != null ? [sRow('Bíceps', 'biceps_mm')] : []),
     sRow('Subescapular', 'subscapular_mm'),
     sRow('Peitoral', 'chest_mm'),
     sRow('Axilar Média', 'midaxillary_mm'),
     sRow('Supra-ilíaca', 'suprailiac_mm'),
     sRow('Abdominal', 'abdominal_mm'),
     sRow('Coxa', 'mid_thigh_mm'),
-    sRow('Panturrilha', 'calf_mm'),
-    { label: 'Somatório (mm)', cur: pdfFormatNumber(a.skinfolds_sum_mm), prevVal: pdfFormatNumber(prev?.skinfolds_sum_mm), delta: pdfDelta(a.skinfolds_sum_mm, prev?.skinfolds_sum_mm) },
-    { label: '% Gordura (dobras)', cur: pdfFormatNumber(a.skinfolds_fat_percentage), prevVal: pdfFormatNumber(prev?.skinfolds_fat_percentage), delta: pdfDelta(a.skinfolds_fat_percentage, prev?.skinfolds_fat_percentage) },
+    ...(sk?.calf_mm != null || psk?.calf_mm != null ? [sRow('Panturrilha', 'calf_mm')] : []),
+    { label: 'Somatório 7 dobras (mm)', cur: pdfFormatNumber(a.skinfolds_sum_mm), prevVal: pdfFormatNumber(prev?.skinfolds_sum_mm), delta: pdfDelta(a.skinfolds_sum_mm, prev?.skinfolds_sum_mm), improve: 'down' },
+    { label: '% Gordura (dobras)', cur: pdfFormatNumber(a.skinfolds_fat_percentage), prevVal: pdfFormatNumber(prev?.skinfolds_fat_percentage), delta: pdfDelta(a.skinfolds_fat_percentage, prev?.skinfolds_fat_percentage), improve: 'down' },
   ], true);
 
   // ---- Anamnese ----
@@ -676,7 +715,7 @@ export function generateAssessmentPDF(data: AssessmentPdfData): jsPDF {
   }
 
   // ======================= EVOLUÇÃO VISUAL (FOTOS) =======================
-  const photos = data.photos ?? [];
+  const photos = pdfUpToDate(data.photos ?? [], a.date); // ignora fotos posteriores à avaliação
   if (photos.length > 0) {
     // Ordem de exibição dos ângulos
     const ANGLE_ORDER = ['FRENTE', 'LADO_DIREITO', 'LADO_ESQUERDO', 'COSTAS', 'PERFIL'];

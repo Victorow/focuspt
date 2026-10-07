@@ -6,6 +6,7 @@ import {
   FIELD_RANGES,
   toOptionalNumber,
   toOptionalBoolean,
+  fatClassificationTone,
 } from '../app/assessment-utils';
 
 // =============================================
@@ -116,5 +117,30 @@ describe('toOptionalBoolean', () => {
     expect(toOptionalBoolean('')).toBeUndefined();
     expect(toOptionalBoolean(null)).toBeUndefined();
     expect(toOptionalBoolean(undefined)).toBeUndefined();
+  });
+});
+
+// =============================================
+// fatClassificationTone (classificação Omron do % gordura)
+// =============================================
+describe('fatClassificationTone', () => {
+  it('Normal → good', () => {
+    expect(fatClassificationTone('Normal')).toBe('good');
+  });
+  it('Baixo → warn (não é "excelente")', () => {
+    expect(fatClassificationTone('Baixo')).toBe('warn');
+  });
+  it('Alto → warn', () => {
+    expect(fatClassificationTone('Alto')).toBe('warn');
+  });
+  it('Muito Alto → bad', () => {
+    expect(fatClassificationTone('Muito Alto')).toBe('bad');
+  });
+  it('ignora maiúsculas/espaços', () => {
+    expect(fatClassificationTone('  muito alto ')).toBe('bad');
+  });
+  it('desconhecido/vazio → neutral', () => {
+    expect(fatClassificationTone('Excelente (Atleta)')).toBe('neutral');
+    expect(fatClassificationTone(null)).toBe('neutral');
   });
 });

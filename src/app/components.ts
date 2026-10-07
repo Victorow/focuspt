@@ -9,7 +9,7 @@ import { extractBase64FromDataUrl } from './lgpd-utils';
 import { generateAssessmentPDF, PdfPhoto } from './pdf-report';
 import { ToastService } from './toast.service';
 import { DialogService } from './dialog.service';
-import { shouldConvertCmToMm, cmToMm, fieldRangeHint, toOptionalNumber, toOptionalBoolean } from './assessment-utils';
+import { shouldConvertCmToMm, cmToMm, fieldRangeHint, toOptionalNumber, toOptionalBoolean, fatClassificationTone } from './assessment-utils';
 
 // ==========================================
 // PHOTO CATEGORY LABEL
@@ -1542,7 +1542,7 @@ export class StudentProfileComponent implements OnInit {
                   <mat-icon class="text-emerald-400">fitness_center</mat-icon>
                   Dobras Cutâneas (Mm)
                 </h3>
-                <p class="text-[11px] text-slate-400 mt-1">Fórmulas automáticas de Jackson & Pollock integradas para cálculo de densidade e % de gordura corporal.</p>
+                <p class="text-[11px] text-slate-400 mt-1">Jackson & Pollock 7 dobras calcula densidade e % de gordura. Bíceps e Panturrilha são opcionais e não entram no cálculo.</p>
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -1551,7 +1551,7 @@ export class StudentProfileComponent implements OnInit {
                   <input type="number" step="0.1" inputMode="decimal" formControlName="tricepsMm" (blur)="maybeConvertSkinfold('tricepsMm')" class="w-full px-4 py-2.5 bg-[#1C1C21] border border-white/5 rounded-xl text-xs text-white" />
                 </div>
                 <div class="space-y-1">
-                  <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Bíceps</label>
+                  <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Bíceps <span class="text-slate-600">(opc.)</span></label>
                   <input type="number" step="0.1" inputMode="decimal" formControlName="bicepsMm" (blur)="maybeConvertSkinfold('bicepsMm')" class="w-full px-4 py-2.5 bg-[#1C1C21] border border-white/5 rounded-xl text-xs text-white" />
                 </div>
                 <div class="space-y-1">
@@ -1579,7 +1579,7 @@ export class StudentProfileComponent implements OnInit {
                   <input type="number" step="0.1" inputMode="decimal" formControlName="midThighMm" (blur)="maybeConvertSkinfold('midThighMm')" class="w-full px-4 py-2.5 bg-[#1C1C21] border border-white/5 rounded-xl text-xs text-white" />
                 </div>
                 <div class="space-y-1">
-                  <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block block">Panturrilha Média</label>
+                  <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block block">Panturrilha Média <span class="text-slate-600">(opc.)</span></label>
                   <input type="number" step="0.1" inputMode="decimal" formControlName="calfMm" (blur)="maybeConvertSkinfold('calfMm')" class="w-full px-4 py-2.5 bg-[#1C1C21] border border-white/5 rounded-xl text-xs text-white" />
                 </div>
               </div>
@@ -1807,14 +1807,14 @@ export class NewAssessmentComponent implements OnInit {
     skinfolds: this.fb.group({
       protocol: ['7_dobras'],            // protocolo de dobras
       tricepsMm: ['', [Validators.required, Validators.min(0.1)]],
-      bicepsMm: ['', [Validators.required, Validators.min(0.1)]],
+      bicepsMm: ['', [Validators.min(0.1)]],             // opcional — não entra no JP7
       subscapularMm: ['', [Validators.required, Validators.min(0.1)]],
       chestMm: ['', [Validators.required, Validators.min(0.1)]],
       midaxillaryMm: ['', [Validators.required, Validators.min(0.1)]],
       suprailiacMm: ['', [Validators.required, Validators.min(0.1)]],
       abdominalMm: ['', [Validators.required, Validators.min(0.1)]],
       midThighMm: ['', [Validators.required, Validators.min(0.1)]],
-      calfMm: ['', [Validators.required, Validators.min(0.1)]]
+      calfMm: ['', [Validators.min(0.1)]]                // opcional — não entra no JP7
     })
   });
 
@@ -1978,14 +1978,14 @@ export class NewAssessmentComponent implements OnInit {
     const skinfolds = {
       protocol: v.skinfolds.protocol ?? '7_dobras',
       triceps_mm: +v.skinfolds.tricepsMm,
-      biceps_mm: +v.skinfolds.bicepsMm,
+      biceps_mm: toOptionalNumber(v.skinfolds.bicepsMm),
       subscapular_mm: +v.skinfolds.subscapularMm,
       chest_mm: +v.skinfolds.chestMm,
       midaxillary_mm: +v.skinfolds.midaxillaryMm,
       suprailiac_mm: +v.skinfolds.suprailiacMm,
       abdominal_mm: +v.skinfolds.abdominalMm,
       mid_thigh_mm: +v.skinfolds.midThighMm,
-      calf_mm: +v.skinfolds.calfMm,
+      calf_mm: toOptionalNumber(v.skinfolds.calfMm),
     };
 
     const editId = this.editAssessmentId();
@@ -2122,7 +2122,7 @@ export class NewAssessmentComponent implements OnInit {
                   <span class="text-xs text-slate-400">%</span>
                 </div>
                 <div class="mt-2 text-[10px] text-slate-450">
-                  Classificação: <strong class="text-emerald-400">{{ current.body_fat_classification }}</strong>
+                  Classificação (bioimp.): <strong [ngClass]="fatClassColor(current.body_fat_classification)">{{ current.body_fat_classification }}</strong>
                 </div>
               </div>
 
@@ -2283,7 +2283,7 @@ export class NewAssessmentComponent implements OnInit {
                       </div>
                       <div class="p-2 bg-[#1C1C21] rounded-xl">
                         <span class="text-[8px] font-bold text-slate-500 uppercase tracking-widest block">Bíceps</span>
-                        <span class="text-xs font-semibold text-slate-200">{{ current.dobras_cutaneas.biceps_mm }}mm</span>
+                        <span class="text-xs font-semibold text-slate-200">{{ current.dobras_cutaneas.biceps_mm != null ? current.dobras_cutaneas.biceps_mm + 'mm' : '—' }}</span>
                       </div>
                       <div class="p-2 bg-[#1C1C21] rounded-xl">
                         <span class="text-[8px] font-bold text-slate-500 uppercase tracking-widest block">Coxa</span>
@@ -2531,6 +2531,16 @@ export class AssessmentReportComponent implements OnInit {
     if (diff <= 0.5) return 'text-emerald-450 font-semibold';
     if (diff <= 1.5) return 'text-slate-300';
     return 'text-amber-400 font-bold';
+  }
+
+  /** Cor da classificação Omron do % gordura (Baixo não é "excelente"). */
+  fatClassColor(label: string | null | undefined): string {
+    switch (fatClassificationTone(label)) {
+      case 'good': return 'text-emerald-400';
+      case 'warn': return 'text-amber-400';
+      case 'bad': return 'text-red-400';
+      default: return 'text-slate-300';
+    }
   }
 
   sendWhatsApp(std: Student, cur: Assessment) {

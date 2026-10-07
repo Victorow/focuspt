@@ -10,6 +10,9 @@ import {
   pdfText,
   pdfProtocolLabel,
   pdfDelta,
+  pdfFormatLocalDate,
+  pdfDeltaTone,
+  pdfUpToDate,
 } from '../app/pdf-report';
 
 // =============================================
@@ -64,25 +67,34 @@ describe('pdfFormatDate', () => {
 // =============================================
 describe('pdfAgeFromBirth', () => {
   it('calcula idade básica', () => {
-    expect(pdfAgeFromBirth('2000-01-01', new Date('2026-06-13'))).toBe(26);
+    expect(pdfAgeFromBirth('2000-01-01', '2026-06-13')).toBe(26);
   });
 
   it('ainda não fez aniversário no ano', () => {
-    expect(pdfAgeFromBirth('2000-12-31', new Date('2026-06-13'))).toBe(25);
+    expect(pdfAgeFromBirth('2000-12-31', '2026-06-13')).toBe(25);
   });
 
   it('exatamente no aniversário', () => {
-    expect(pdfAgeFromBirth('2000-06-13', new Date('2026-06-13'))).toBe(26);
+    expect(pdfAgeFromBirth('2000-06-13', '2026-06-13')).toBe(26);
   });
 
   it('um dia antes do aniversário', () => {
-    expect(pdfAgeFromBirth('2000-06-14', new Date('2026-06-13'))).toBe(25);
+    expect(pdfAgeFromBirth('2000-06-14', '2026-06-13')).toBe(25);
+  });
+
+  it('véspera do aniversário com ref Date local (sem bug de fuso UTC)', () => {
+    // 13/06/2026 23:30 local — véspera do aniversário de 14/06
+    expect(pdfAgeFromBirth('2000-06-14', new Date(2026, 5, 13, 23, 30))).toBe(25);
+    // 14/06/2026 00:10 local — já fez aniversário
+    expect(pdfAgeFromBirth('2000-06-14', new Date(2026, 5, 14, 0, 10))).toBe(26);
+  });
+
+  it('nascimento em 1º de janeiro não vira 31/12 do ano anterior', () => {
+    expect(pdfAgeFromBirth('2000-01-01', '2025-12-31')).toBe(25);
+    expect(pdfAgeFromBirth('2000-01-01', '2026-01-01')).toBe(26);
   });
 });
 
-// =============================================
-// pdfGenderLabel
-// =============================================
 describe('pdfGenderLabel', () => {
   it('MALE → Masculino', () => {
     expect(pdfGenderLabel('MALE')).toBe('Masculino');
@@ -162,6 +174,13 @@ describe('pdfProtocolLabel', () => {
   it('7_dobras → nome completo', () => {
     expect(pdfProtocolLabel('7_dobras')).toContain('7 Dobras');
   });
+  it('3_dobras_masc / 3_dobras_fem → nomes do protocolo de 3 dobras', () => {
+    expect(pdfProtocolLabel('3_dobras_masc')).toBe('3 Dobras Masc. (Jackson & Pollock)');
+    expect(pdfProtocolLabel('3_dobras_fem')).toBe('3 Dobras Fem. (Jackson & Pollock)');
+  });
+  it('3_dobras (inexistente no banco) não é mais mapeado', () => {
+    expect(pdfProtocolLabel('3_dobras')).toBe('3_dobras');
+  });
   it('protocolo desconhecido retorna ele mesmo', () => {
     expect(pdfProtocolLabel('custom')).toBe('custom');
   });
@@ -215,5 +234,64 @@ describe('pdfDelta', () => {
     const d = pdfDelta(80.04, 80.0, 1);
     expect(d.dir).toBe('flat');
     expect(d.text).toBe('0');
+  });
+});
+
+// =============================================
+// pdfFormatLocalDate
+// =============================================
+describe('pdfFormatLocalDate', () => {
+  it('usa campos locais (21h30 local não vira o dia seguinte)', () => {
+    expect(pdfFormatLocalDate(new Date(2026, 9, 6, 21, 30))).toBe('06/10/2026');
+  });
+  it('preenche com zero à esquerda', () => {
+    expect(pdfFormatLocalDate(new Date(2026, 0, 5))).toBe('05/01/2026');
+  });
+});
+
+// =============================================
+// pdfDeltaTone
+// =============================================
+describe('pdfDeltaTone', () => {
+  const up = pdfDelta(82, 80);
+  const down = pdfDelta(78, 80);
+  const flat = pdfDelta(80, 80);
+
+  it('improve down: queda é boa, alta é ruim', () => {
+    expect(pdfDeltaTone(down, 'down')).toBe('good');
+    expect(pdfDeltaTone(up, 'down')).toBe('bad');
+  });
+  it('improve up: alta é boa, queda é ruim', () => {
+    expect(pdfDeltaTone(up, 'up')).toBe('good');
+    expect(pdfDeltaTone(down, 'up')).toBe('bad');
+  });
+  it('neutral ou ausente → neutral', () => {
+    expect(pdfDeltaTone(up, 'neutral')).toBe('neutral');
+    expect(pdfDeltaTone(down, undefined)).toBe('neutral');
+  });
+  it('flat ou delta ausente → neutral', () => {
+    expect(pdfDeltaTone(flat, 'down')).toBe('neutral');
+    expect(pdfDeltaTone(undefined, 'up')).toBe('neutral');
+  });
+});
+
+// =============================================
+// pdfUpToDate
+// =============================================
+describe('pdfUpToDate', () => {
+  const items = [
+    { date: '2026-01-10' },
+    { date: '2026-03-15' },
+    { date: '2026-05-20' },
+  ];
+  it('mantém só itens com data <= referência (inclusive)', () => {
+    expect(pdfUpToDate(items, '2026-03-15').map(i => i.date)).toEqual(['2026-01-10', '2026-03-15']);
+  });
+  it('aceita datas com horário (compara só YYYY-MM-DD)', () => {
+    expect(pdfUpToDate([{ date: '2026-03-15T22:00:00' }, { date: '2026-03-16T01:00:00' }], '2026-03-15'))
+      .toEqual([{ date: '2026-03-15T22:00:00' }]);
+  });
+  it('referência ausente → retorna tudo', () => {
+    expect(pdfUpToDate(items, '')).toHaveLength(3);
   });
 });
