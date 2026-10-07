@@ -2,13 +2,42 @@ import { handleCors, jsonResponse, errorResponse } from '../_shared/cors.ts';
 import { getAuthUser } from '../_shared/supabase.ts';
 import {
   calcBmi, classifyBmi, classifyBodyFat, classifyVisceral,
-  calcJacksonPollock7, calcRcq, calcAge,
+  calcJacksonPollock7, calcSkinfoldsSum7, calcRcq, calcAge,
 } from '../_shared/calculations.ts';
+
+// Dobras do protocolo JP7 — obrigatórias (bíceps e panturrilha são opcionais e ficam fora)
+const DOBRAS_JP7 = [
+  'chest_mm', 'midaxillary_mm', 'triceps_mm', 'subscapular_mm',
+  'abdominal_mm', 'suprailiac_mm', 'mid_thigh_mm',
+] as const;
+
+// deno-lint-ignore no-explicit-any
+function validarDobrasJp7(skinfolds: any): string | null {
+  // Só o protocolo JP7 (7 dobras) está implementado; ausente = '7_dobras'
+  const protocol = skinfolds?.protocol ?? '7_dobras';
+  if (protocol !== '7_dobras') {
+    return `Protocolo de dobras não suportado: ${protocol}. Use '7_dobras' (Jackson & Pollock 7 dobras).`;
+  }
+  const faltando = DOBRAS_JP7.filter((k) => {
+    const v = skinfolds?.[k];
+    return typeof v !== 'number' || !Number.isFinite(v) || v <= 0;
+  });
+  return faltando.length
+    ? `Dobras cutâneas obrigatórias ausentes ou inválidas (devem ser maiores que zero): ${faltando.join(', ')}`
+    : null;
+}
+
+// Medida opcional: ausente/vazia/zero/não numérica vira null (0 violaria o CHECK > 0)
+function toNullable(v: unknown): number | null {
+  const n = typeof v === 'number' ? v : (typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
 
 // deno-lint-ignore no-explicit-any
 function buildPayloads(aluno: any, body: any) {
   const { date, bioimpedance, circumferences, skinfolds } = body;
-  const age = calcAge(aluno.birth_date);
+  // Idade NA DATA da avaliação (não hoje) — importa para avaliações retroativas
+  const age = calcAge(aluno.birth_date, date);
   const gender = aluno.gender as 'MALE' | 'FEMALE';
 
   const bmi = calcBmi(bioimpedance.weight_kg, aluno.height_cm);
@@ -23,11 +52,12 @@ function buildPayloads(aluno: any, body: any) {
     skinfolds.subscapular_mm, skinfolds.abdominal_mm, skinfolds.suprailiac_mm,
     skinfolds.mid_thigh_mm,
   );
-  const skinfoldsSum = [
-    skinfolds.triceps_mm, skinfolds.biceps_mm, skinfolds.subscapular_mm, skinfolds.chest_mm,
-    skinfolds.midaxillary_mm, skinfolds.suprailiac_mm, skinfolds.abdominal_mm,
-    skinfolds.mid_thigh_mm, skinfolds.calf_mm,
-  ].reduce((a: number, b: number) => a + (Number(b) || 0), 0);
+  // Somatório = só as 7 dobras do JP7 (mesma soma usada no % de gordura)
+  const skinfoldsSum = calcSkinfoldsSum7(
+    skinfolds.chest_mm, skinfolds.midaxillary_mm, skinfolds.triceps_mm,
+    skinfolds.subscapular_mm, skinfolds.abdominal_mm, skinfolds.suprailiac_mm,
+    skinfolds.mid_thigh_mm,
+  );
 
   return {
     p_avaliacao: {
@@ -63,14 +93,14 @@ function buildPayloads(aluno: any, body: any) {
     p_dobras: {
       protocol: skinfolds.protocol ?? '7_dobras',
       triceps_mm: skinfolds.triceps_mm,
-      biceps_mm: skinfolds.biceps_mm,
+      biceps_mm: toNullable(skinfolds.biceps_mm),
       subscapular_mm: skinfolds.subscapular_mm,
       chest_mm: skinfolds.chest_mm,
       midaxillary_mm: skinfolds.midaxillary_mm,
       suprailiac_mm: skinfolds.suprailiac_mm,
       abdominal_mm: skinfolds.abdominal_mm,
       mid_thigh_mm: skinfolds.mid_thigh_mm,
-      calf_mm: skinfolds.calf_mm,
+      calf_mm: toNullable(skinfolds.calf_mm),
       sum_mm: skinfoldsSum,
       fat_percentage: skinfoldsFatPct,
     },
@@ -126,6 +156,8 @@ Deno.serve(async (req) => {
       if (!aluno_id || !date || !bioimpedance || !circumferences || !skinfolds) {
         return errorResponse('Campos obrigatórios: aluno_id, date, bioimpedance, circumferences, skinfolds');
       }
+      const dobrasErr = validarDobrasJp7(skinfolds);
+      if (dobrasErr) return errorResponse(dobrasErr, 400);
 
       const { data: aluno, error: alunoErr } = await client
         .from('alunos').select('id, gender, birth_date, height_cm')
@@ -148,6 +180,8 @@ Deno.serve(async (req) => {
       if (!avaliacao_id || !bioimpedance || !circumferences || !skinfolds) {
         return errorResponse('Campos obrigatórios: avaliacao_id, bioimpedance, circumferences, skinfolds');
       }
+      const dobrasErr = validarDobrasJp7(skinfolds);
+      if (dobrasErr) return errorResponse(dobrasErr, 400);
 
       // Resolve o aluno dono desta avaliação (e valida posse via RLS no join)
       const { data: aval, error: avErr } = await client

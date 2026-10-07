@@ -6,6 +6,7 @@ import {
   classifySkeletalMuscle,
   classifyVisceral,
   calcJacksonPollock7,
+  calcSkinfoldsSum7,
   calcRcq,
   classifyRcq,
   calcAge,
@@ -62,48 +63,65 @@ describe('classifyBmi', () => {
 // Body Fat Classification
 // =============================================
 describe('classifyBodyFat', () => {
-  it('homem < 30 anos - Excelente', () => {
-    expect(classifyBodyFat('MALE', 25, 10)).toBe('Excelente');
+  // Tabela Omron HBF-514C (Gallagher 2000)
+  it('homem 20-39 - Baixo (< 8)', () => {
+    expect(classifyBodyFat('MALE', 25, 7.9)).toBe('Baixo');
   });
 
-  it('homem < 30 anos - Bom', () => {
-    expect(classifyBodyFat('MALE', 25, 14)).toBe('Bom');
+  it('homem 20-39 - Normal (8 a 19,9)', () => {
+    expect(classifyBodyFat('MALE', 25, 8)).toBe('Normal');
+    expect(classifyBodyFat('MALE', 25, 19.9)).toBe('Normal');
   });
 
-  it('homem < 30 anos - Normal', () => {
-    expect(classifyBodyFat('MALE', 25, 19)).toBe('Normal');
+  it('homem 20-39 - Alto (20 a 24,9)', () => {
+    expect(classifyBodyFat('MALE', 25, 20)).toBe('Alto');
+    expect(classifyBodyFat('MALE', 39, 24.9)).toBe('Alto');
   });
 
-  it('homem < 30 anos - Alto', () => {
-    expect(classifyBodyFat('MALE', 25, 24)).toBe('Alto');
+  it('homem 20-39 - Muito Alto (>= 25)', () => {
+    expect(classifyBodyFat('MALE', 25, 25)).toBe('Muito Alto');
   });
 
-  it('homem < 30 anos - Muito Alto', () => {
-    expect(classifyBodyFat('MALE', 25, 30)).toBe('Muito Alto');
+  it('homem 40-59 - limites 11 / 22 / 28', () => {
+    expect(classifyBodyFat('MALE', 40, 10.9)).toBe('Baixo');
+    expect(classifyBodyFat('MALE', 45, 11)).toBe('Normal');
+    expect(classifyBodyFat('MALE', 59, 22)).toBe('Alto');
+    expect(classifyBodyFat('MALE', 50, 28)).toBe('Muito Alto');
   });
 
-  it('homem 30-39 anos - Normal', () => {
-    expect(classifyBodyFat('MALE', 35, 20)).toBe('Normal');
+  it('homem 60+ - limites 13 / 25 / 30', () => {
+    expect(classifyBodyFat('MALE', 60, 12.9)).toBe('Baixo');
+    expect(classifyBodyFat('MALE', 70, 24.9)).toBe('Normal');
+    expect(classifyBodyFat('MALE', 65, 25)).toBe('Alto');
+    expect(classifyBodyFat('MALE', 80, 30)).toBe('Muito Alto');
   });
 
-  it('homem 40-49 anos - Normal', () => {
-    expect(classifyBodyFat('MALE', 45, 22)).toBe('Normal');
+  it('mulher 20-39 - limites 21 / 33 / 39', () => {
+    expect(classifyBodyFat('FEMALE', 25, 20.9)).toBe('Baixo');
+    expect(classifyBodyFat('FEMALE', 25, 21)).toBe('Normal');
+    expect(classifyBodyFat('FEMALE', 25, 32.9)).toBe('Normal');
+    expect(classifyBodyFat('FEMALE', 39, 33)).toBe('Alto');
+    expect(classifyBodyFat('FEMALE', 30, 39)).toBe('Muito Alto');
   });
 
-  it('homem >= 50 anos - Normal', () => {
-    expect(classifyBodyFat('MALE', 55, 24)).toBe('Normal');
-  });
-
-  it('mulher < 30 anos - Normal', () => {
-    expect(classifyBodyFat('FEMALE', 25, 22)).toBe('Normal');
-  });
-
-  it('mulher 40-49 anos - Normal', () => {
-    expect(classifyBodyFat('FEMALE', 45, 27)).toBe('Normal');
-  });
-
-  it('mulher >= 50 anos - Alto', () => {
+  it('mulher 40-59 - limites 23 / 34 / 40', () => {
+    expect(classifyBodyFat('FEMALE', 40, 22.9)).toBe('Baixo');
+    expect(classifyBodyFat('FEMALE', 45, 33.9)).toBe('Normal');
     expect(classifyBodyFat('FEMALE', 55, 34)).toBe('Alto');
+    expect(classifyBodyFat('FEMALE', 59, 40)).toBe('Muito Alto');
+  });
+
+  it('mulher 60+ - limites 24 / 36 / 42', () => {
+    expect(classifyBodyFat('FEMALE', 60, 23.9)).toBe('Baixo');
+    expect(classifyBodyFat('FEMALE', 70, 35.9)).toBe('Normal');
+    expect(classifyBodyFat('FEMALE', 65, 36)).toBe('Alto');
+    expect(classifyBodyFat('FEMALE', 75, 42)).toBe('Muito Alto');
+  });
+
+  it('menores de 20 anos usam a faixa 20-39', () => {
+    expect(classifyBodyFat('MALE', 16, 7.9)).toBe('Baixo');
+    expect(classifyBodyFat('MALE', 16, 20)).toBe('Alto');
+    expect(classifyBodyFat('FEMALE', 17, 33)).toBe('Alto');
   });
 });
 
@@ -111,32 +129,51 @@ describe('classifyBodyFat', () => {
 // Skeletal Muscle Classification
 // =============================================
 describe('classifySkeletalMuscle', () => {
-  it('homem < 40 anos - Alto (>= 40%)', () => {
-    expect(classifySkeletalMuscle('MALE', 30, 42)).toBe('Alto');
+  // Tabela Omron HBF-514C
+  it('homem 18-39 - limites 33,3 / 39,4 / 44,1', () => {
+    expect(classifySkeletalMuscle('MALE', 30, 33.2)).toBe('Baixo');
+    expect(classifySkeletalMuscle('MALE', 30, 33.3)).toBe('Normal');
+    expect(classifySkeletalMuscle('MALE', 30, 39.4)).toBe('Alto');
+    expect(classifySkeletalMuscle('MALE', 39, 44.1)).toBe('Muito Alto');
   });
 
-  it('homem < 40 anos - Normal (33-39%)', () => {
-    expect(classifySkeletalMuscle('MALE', 30, 36)).toBe('Normal');
+  it('homem 40-59 - limites 33,1 / 39,2 / 43,9', () => {
+    expect(classifySkeletalMuscle('MALE', 45, 33.0)).toBe('Baixo');
+    expect(classifySkeletalMuscle('MALE', 45, 33.1)).toBe('Normal');
+    expect(classifySkeletalMuscle('MALE', 59, 39.2)).toBe('Alto');
+    expect(classifySkeletalMuscle('MALE', 40, 43.9)).toBe('Muito Alto');
   });
 
-  it('homem < 40 anos - Baixo (< 33%)', () => {
-    expect(classifySkeletalMuscle('MALE', 30, 25)).toBe('Baixo');
+  it('homem 60+ - limites 32,9 / 39,0 / 43,7', () => {
+    expect(classifySkeletalMuscle('MALE', 60, 32.8)).toBe('Baixo');
+    expect(classifySkeletalMuscle('MALE', 70, 32.9)).toBe('Normal');
+    expect(classifySkeletalMuscle('MALE', 70, 39.0)).toBe('Alto');
+    expect(classifySkeletalMuscle('MALE', 70, 43.7)).toBe('Muito Alto');
   });
 
-  it('homem >= 40 anos - Alto (>= 37%)', () => {
-    expect(classifySkeletalMuscle('MALE', 45, 38)).toBe('Alto');
+  it('mulher 18-39 - limites 24,3 / 30,4 / 35,4', () => {
+    expect(classifySkeletalMuscle('FEMALE', 28, 24.2)).toBe('Baixo');
+    expect(classifySkeletalMuscle('FEMALE', 28, 24.3)).toBe('Normal');
+    expect(classifySkeletalMuscle('FEMALE', 28, 30.4)).toBe('Alto');
+    expect(classifySkeletalMuscle('FEMALE', 28, 35.4)).toBe('Muito Alto');
   });
 
-  it('homem >= 40 anos - Baixo (< 30%)', () => {
-    expect(classifySkeletalMuscle('MALE', 45, 28)).toBe('Baixo');
+  it('mulher 40-59 - limites 24,1 / 30,2 / 35,2', () => {
+    expect(classifySkeletalMuscle('FEMALE', 45, 24.0)).toBe('Baixo');
+    expect(classifySkeletalMuscle('FEMALE', 45, 24.1)).toBe('Normal');
+    expect(classifySkeletalMuscle('FEMALE', 45, 30.2)).toBe('Alto');
+    expect(classifySkeletalMuscle('FEMALE', 45, 35.2)).toBe('Muito Alto');
   });
 
-  it('mulher < 40 anos - Normal (28-33%)', () => {
-    expect(classifySkeletalMuscle('FEMALE', 28, 30)).toBe('Normal');
+  it('mulher 60+ - limites 23,9 / 30,0 / 35,0', () => {
+    expect(classifySkeletalMuscle('FEMALE', 65, 23.8)).toBe('Baixo');
+    expect(classifySkeletalMuscle('FEMALE', 65, 23.9)).toBe('Normal');
+    expect(classifySkeletalMuscle('FEMALE', 65, 30.0)).toBe('Alto');
+    expect(classifySkeletalMuscle('FEMALE', 65, 35.0)).toBe('Muito Alto');
   });
 
-  it('mulher >= 40 anos - Alto (>= 32%)', () => {
-    expect(classifySkeletalMuscle('FEMALE', 45, 33)).toBe('Alto');
+  it('menores de 18 anos usam a faixa 18-39', () => {
+    expect(classifySkeletalMuscle('MALE', 16, 33.3)).toBe('Normal');
   });
 });
 
@@ -155,6 +192,34 @@ describe('classifyVisceral', () => {
 // =============================================
 // Jackson & Pollock 7 Dobras
 // =============================================
+describe('calcSkinfoldsSum7', () => {
+  it('soma as 7 dobras do protocolo JP7', () => {
+    // peitoral, axilar média, tríceps, subescapular, abdominal, supra-ilíaca, coxa
+    expect(calcSkinfoldsSum7(10, 12, 12, 14, 22, 16, 18)).toBe(104);
+  });
+
+  it('bíceps e panturrilha NÃO entram no somatório', () => {
+    const dobras = {
+      chest_mm: 10, midaxillary_mm: 12, triceps_mm: 12, subscapular_mm: 14,
+      abdominal_mm: 22, suprailiac_mm: 16, mid_thigh_mm: 18,
+      biceps_mm: 8, calf_mm: 9,
+    };
+    const soma = calcSkinfoldsSum7(
+      dobras.chest_mm, dobras.midaxillary_mm, dobras.triceps_mm, dobras.subscapular_mm,
+      dobras.abdominal_mm, dobras.suprailiac_mm, dobras.mid_thigh_mm,
+    );
+    expect(soma).toBe(104);
+    expect(soma).not.toBe(104 + dobras.biceps_mm + dobras.calf_mm);
+  });
+
+  it('calcJacksonPollock7 usa o mesmo somatório (não divergem)', () => {
+    const sum7 = calcSkinfoldsSum7(10, 12, 12, 14, 22, 16, 18);
+    const density = 1.112 - (0.00043499 * sum7) + (0.00000055 * sum7 * sum7) - (0.00028826 * 36);
+    const esperado = Math.round(((495 / density) - 450) * 100) / 100;
+    expect(calcJacksonPollock7('MALE', 36, 10, 12, 12, 14, 22, 16, 18)).toBe(esperado);
+  });
+});
+
 describe('calcJacksonPollock7', () => {
   it('homem adulto - retorna % gordura dentro do esperado', () => {
     const result = calcJacksonPollock7('MALE', 36, 10, 12, 12, 14, 22, 16, 18);
@@ -247,10 +312,28 @@ describe('calcAge', () => {
     expect(age).toBeLessThan(0);
   });
 
-  it('data de hoje menos 1 ano = 1', () => {
+  it('sem refDate usa a data de hoje (local): hoje menos 1 ano = 1', () => {
     const d = new Date();
-    d.setFullYear(d.getFullYear() - 1);
-    const iso = d.toISOString().split('T')[0];
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const iso = `${d.getFullYear() - 1}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     expect(calcAge(iso)).toBe(1);
+  });
+
+  it('véspera do aniversário ainda não completou o ano', () => {
+    expect(calcAge('1990-06-15', '2020-06-14')).toBe(29);
+  });
+
+  it('no dia do aniversário completa o ano', () => {
+    expect(calcAge('1990-06-15', '2020-06-15')).toBe(30);
+  });
+
+  it('virada de ano: 31/12 vs 01/01 (sem deslocamento de fuso/UTC)', () => {
+    expect(calcAge('2000-01-01', '2019-12-31')).toBe(19);
+    expect(calcAge('2000-01-01', '2020-01-01')).toBe(20);
+  });
+
+  it('avaliação retroativa usa a idade NA DATA da avaliação, não hoje', () => {
+    expect(calcAge('1980-03-10', '2010-03-09')).toBe(29);
+    expect(calcAge('1980-03-10', '2010-03-10')).toBe(30);
   });
 });

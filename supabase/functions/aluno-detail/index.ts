@@ -23,6 +23,7 @@ Deno.serve(async (req) => {
             id, date, bmi, bmi_classification, body_fat_percentage, fat_mass_kg,
             lean_mass_kg, body_fat_classification, visceral_risk,
             skinfolds_fat_percentage, skinfolds_sum_mm, rcq, observacoes,
+            last_menstruation_date, menstrual_cycle_regular,
             bioimpedancias(*),
             dobras_cutaneas(*),
             circunferencias(*)
@@ -45,7 +46,8 @@ Deno.serve(async (req) => {
         .select(`
           id, date, bmi, bmi_classification, body_fat_percentage, fat_mass_kg,
           lean_mass_kg, body_fat_classification, visceral_risk,
-          skinfolds_fat_percentage, skinfolds_sum_mm, rcq, deleted_at,
+          skinfolds_fat_percentage, skinfolds_sum_mm, rcq, observacoes, deleted_at,
+          last_menstruation_date, menstrual_cycle_regular,
           bioimpedancias(*),
           dobras_cutaneas(*),
           circunferencias(*)
