@@ -1,9 +1,10 @@
-import { handleCors, jsonResponse, errorResponse } from '../_shared/cors.ts';
+import { handleCors, jsonResponse, errorResponse, handleError } from '../_shared/cors.ts';
 import { getAuthUser } from '../_shared/supabase.ts';
 import {
   calcBmi, classifyBmi, classifyBodyFat, classifyVisceral,
   calcJacksonPollock7, calcSkinfoldsSum7, calcRcq, calcAge,
 } from '../_shared/calculations.ts';
+import { isIsoDate, isUuid } from '../_shared/validation.ts';
 
 // Dobras do protocolo JP7 — obrigatórias (bíceps e panturrilha são opcionais e ficam fora)
 const DOBRAS_JP7 = [
@@ -147,8 +148,10 @@ Deno.serve(async (req) => {
   if (cors) return cors;
 
   try {
+    if (!['POST', 'PUT', 'PATCH'].includes(req.method)) return errorResponse('Method not allowed', 405);
+
     const { user, client } = await getAuthUser(req);
-    const body = await req.json();
+    const body = (await req.json()) ?? {};
 
     // ---- CRIAR ----
     if (req.method === 'POST') {
@@ -156,12 +159,14 @@ Deno.serve(async (req) => {
       if (!aluno_id || !date || !bioimpedance || !circumferences || !skinfolds) {
         return errorResponse('Campos obrigatórios: aluno_id, date, bioimpedance, circumferences, skinfolds');
       }
+      if (!isIsoDate(date)) return errorResponse('date inválida (use YYYY-MM-DD)');
+      if (!isUuid(aluno_id)) return errorResponse('Aluno não encontrado ou sem permissão', 403);
       const dobrasErr = validarDobrasJp7(skinfolds);
       if (dobrasErr) return errorResponse(dobrasErr, 400);
 
       const { data: aluno, error: alunoErr } = await client
         .from('alunos').select('id, gender, birth_date, height_cm')
-        .eq('id', aluno_id).eq('personal_trainer_id', user.id).single();
+        .eq('id', aluno_id).eq('personal_trainer_id', user.id).is('deleted_at', null).maybeSingle();
       if (alunoErr || !aluno) return errorResponse('Aluno não encontrado ou sem permissão', 403);
 
       const p = buildPayloads(aluno, body);
@@ -179,6 +184,10 @@ Deno.serve(async (req) => {
       const { avaliacao_id, bioimpedance, circumferences, skinfolds } = body;
       if (!avaliacao_id || !bioimpedance || !circumferences || !skinfolds) {
         return errorResponse('Campos obrigatórios: avaliacao_id, bioimpedance, circumferences, skinfolds');
+      }
+      if (!isUuid(avaliacao_id)) return errorResponse('Avaliação não encontrada ou sem permissão', 403);
+      if (body.date !== undefined && body.date !== null && !isIsoDate(body.date)) {
+        return errorResponse('date inválida (use YYYY-MM-DD)');
       }
       const dobrasErr = validarDobrasJp7(skinfolds);
       if (dobrasErr) return errorResponse(dobrasErr, 400);
@@ -212,6 +221,7 @@ Deno.serve(async (req) => {
     if (req.method === 'PATCH') {
       const { avaliacao_id, observacoes } = body;
       if (!avaliacao_id) return errorResponse('Campo obrigatório: avaliacao_id');
+      if (!isUuid(avaliacao_id)) return errorResponse('Avaliação não encontrada ou sem permissão', 403);
 
       // Valida posse via join com alunos (RLS) antes de atualizar
       const { data: aval, error: avErr } = await client
@@ -239,8 +249,9 @@ Deno.serve(async (req) => {
 
     return errorResponse('Method not allowed', 405);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Internal error';
-    if (msg === 'Unauthorized') return errorResponse('Unauthorized', 401);
-    return errorResponse(friendlyError(msg), 500);
+    // Violação de CHECK vira mensagem amigável (400); o resto, erro genérico sem detalhes internos
+    const msg = (err as { message?: string })?.message ?? '';
+    if (msg.includes('violates check constraint')) return errorResponse(friendlyError(msg), 400);
+    return handleError(err);
   }
 });

@@ -1,5 +1,6 @@
-import { handleCors, jsonResponse, errorResponse } from '../_shared/cors.ts';
+import { handleCors, jsonResponse, errorResponse, handleError } from '../_shared/cors.ts';
 import { getAuthUser } from '../_shared/supabase.ts';
+import { isUuid } from '../_shared/validation.ts';
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -11,6 +12,7 @@ Deno.serve(async (req) => {
     const parts = url.pathname.split('/').filter(Boolean);
     const avaliacaoId = parts.pop();
     if (!avaliacaoId) return errorResponse('ID da avaliação não informado');
+    if (!isUuid(avaliacaoId)) return errorResponse('Avaliação não encontrada', 404);
 
     if (req.method === 'GET') {
       const { data, error } = await client
@@ -74,8 +76,6 @@ Deno.serve(async (req) => {
 
     return errorResponse('Method not allowed', 405);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Internal error';
-    if (msg === 'Unauthorized') return errorResponse('Unauthorized', 401);
-    return errorResponse(msg, 500);
+    return handleError(err);
   }
 });

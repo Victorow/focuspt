@@ -1,5 +1,6 @@
-import { handleCors, jsonResponse, errorResponse } from '../_shared/cors.ts';
+import { handleCors, jsonResponse, errorResponse, handleError } from '../_shared/cors.ts';
 import { getAuthUser } from '../_shared/supabase.ts';
+import { sanitizeSearchTerm, validateAlunoFields } from '../_shared/validation.ts';
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -10,7 +11,8 @@ Deno.serve(async (req) => {
 
     if (req.method === 'GET') {
       const url = new URL(req.url);
-      const search = url.searchParams.get('search') ?? '';
+      // Termo saneado: impede injetar filtros extras na sintaxe do .or() do PostgREST
+      const search = sanitizeSearchTerm(url.searchParams.get('search'));
 
       // Lixeira: alunos soft-deletados (lidos da tabela, pois a view os oculta)
       if (url.searchParams.get('trash') === '1') {
@@ -30,7 +32,7 @@ Deno.serve(async (req) => {
         .eq('personal_trainer_id', user.id)
         .order('name');
 
-      if (search.trim()) {
+      if (search) {
         query = query.or(
           `name.ilike.%${search}%,goal.ilike.%${search}%,phone_number.ilike.%${search}%`
         );
@@ -38,46 +40,48 @@ Deno.serve(async (req) => {
 
       const { data, error } = await query;
       if (error) throw error;
-      return jsonResponse(data);
+      // lgpd_signature_url (da view) pode conter URL assinada de longa duração de registros
+      // antigos — não é usada pela lista e não deve sair para o cliente.
+      const rows = (data ?? []).map(({ lgpd_signature_url: _omit, ...rest }: Record<string, unknown>) => rest);
+      return jsonResponse(rows);
     }
 
     if (req.method === 'POST') {
-      const body = await req.json();
+      const body = (await req.json()) ?? {};
 
-      const { name, birth_date, gender, height_cm, goal, phone_number, lgpd_consent_status, anamnesis } = body;
-
-      if (!name || !birth_date || !gender || !height_cm) {
-        return errorResponse('Campos obrigatórios: name, birth_date, gender, height_cm');
-      }
-      if (!['MALE', 'FEMALE'].includes(gender)) return errorResponse('gender inválido');
-      if (height_cm < 50 || height_cm > 250) return errorResponse('height_cm fora do intervalo 50-250');
+      const { anamnesis } = body;
+      const { value: fields, error: validationErr } = validateAlunoFields(body, false);
+      if (validationErr) return errorResponse(validationErr);
 
       const { data: aluno, error: alunoError } = await client
         .from('alunos')
         .insert({
           personal_trainer_id: user.id,
-          name: name.trim(),
-          birth_date,
-          gender,
-          height_cm,
-          goal: goal ?? '',
-          phone_number: phone_number ?? null,
-          lgpd_consent_status: lgpd_consent_status ?? 'PENDING',
+          name: fields.name,
+          birth_date: fields.birth_date,
+          gender: fields.gender,
+          height_cm: fields.height_cm,
+          goal: fields.goal ?? '',
+          phone_number: fields.phone_number ?? null,
+          // Todo aluno novo começa PENDING; o valor enviado pelo cliente é ignorado.
+          // Só o lgpd-sign muda para ACCEPTED, após a assinatura do termo.
+          lgpd_consent_status: 'PENDING',
         })
         .select()
         .single();
 
       if (alunoError) throw alunoError;
 
-      if (anamnesis) {
+      if (anamnesis && typeof anamnesis === 'object') {
+        const texto = (v: unknown) => (typeof v === 'string' ? v.slice(0, 2000) : '');
         const { error: anaError } = await client.from('anamneses').insert({
           aluno_id: aluno.id,
-          cardiac_condition: anamnesis.cardiac_condition ?? false,
-          joint_pain: anamnesis.joint_pain ?? false,
-          chest_pain_during_exercise: anamnesis.chest_pain_during_exercise ?? false,
-          recent_surgery_description: anamnesis.recent_surgery_description ?? '',
-          active_medications: anamnesis.active_medications ?? '',
-          notes: anamnesis.notes ?? '',
+          cardiac_condition: anamnesis.cardiac_condition === true,
+          joint_pain: anamnesis.joint_pain === true,
+          chest_pain_during_exercise: anamnesis.chest_pain_during_exercise === true,
+          recent_surgery_description: texto(anamnesis.recent_surgery_description),
+          active_medications: texto(anamnesis.active_medications),
+          notes: texto(anamnesis.notes),
         });
         if (anaError) throw anaError;
       }
@@ -87,8 +91,6 @@ Deno.serve(async (req) => {
 
     return errorResponse('Method not allowed', 405);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Internal error';
-    if (msg === 'Unauthorized') return errorResponse('Unauthorized', 401);
-    return errorResponse(msg, 500);
+    return handleError(err);
   }
 });

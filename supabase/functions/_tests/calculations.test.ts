@@ -195,8 +195,9 @@ Deno.test('calcJacksonPollock7 - usa o mesmo somatório de calcSkinfoldsSum7', (
 
 Deno.test('calcJacksonPollock7 - homem referência', () => {
   const result = calcJacksonPollock7('MALE', 36, 10, 12, 12, 14, 22, 16, 18);
-  // sum7 = 104, density ≈ 1.0713, fat% ≈ 12.3
-  assertAlmostEquals(result, 12.0, 3);
+  // sum7 = 104, idade 36: densidade = 1.112 − 0.00043499·104 + 0.00000055·104² − 0.00028826·36 ≈ 1.06233
+  // Siri: 495 / 1.06233 − 450 ≈ 15.96%
+  assertAlmostEquals(result, 15.96, 0.01);
 });
 
 Deno.test('calcJacksonPollock7 - mulher referência', () => {
