@@ -3,13 +3,16 @@ import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup, FormControl, Validators, AbstractControl } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
-import { DataService, Student, StudentSummary, TrashedStudent, Assessment, DashboardStats, PhotoCategory } from './data';
+import { DataService, Student, StudentSummary, TrashedStudent, Assessment, DashboardStats, PhotoCategory, Photo } from './data';
 import { SupabaseService } from './supabase.service';
 import { extractBase64FromDataUrl } from './lgpd-utils';
 import { generateAssessmentPDF, PdfPhoto } from './pdf-report';
 import { ToastService } from './toast.service';
 import { DialogService } from './dialog.service';
 import { shouldConvertCmToMm, cmToMm, fieldRangeHint, toOptionalNumber, toOptionalBoolean, fatClassificationTone } from './assessment-utils';
+import { buildAttentionGroups, countRecentlyAssessed, AttentionGroups } from './attention-utils';
+import { todayYmd } from './date-utils';
+import { selectRecentPhotos } from './media-utils';
 
 // ==========================================
 // PHOTO CATEGORY LABEL
@@ -223,31 +226,18 @@ export class LoginComponent {
         <div class="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400">{{ loadError() }}</div>
       }
       @if (stats(); as s) {
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <!-- Card Alunos Ativos -->
           <div class="bg-[#141417] p-5 rounded-2xl border border-white/5 flex items-center justify-between">
             <div>
               <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Alunos Ativos</p>
               <h2 class="text-3xl font-extrabold text-white">{{ s.activeStudents }}</h2>
-              <p class="text-[10px] text-emerald-400 mt-1 flex items-center gap-0.5">
-                <mat-icon class="!text-[10px] h-3 w-3">trending_up</mat-icon>
-                100% de ocupação
-              </p>
+              @if (students()) {
+                <p class="text-[10px] text-slate-400 mt-1">{{ recentlyAssessed() }} avaliado(s) nos últimos 90 dias</p>
+              }
             </div>
             <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
               <mat-icon>people</mat-icon>
-            </div>
-          </div>
-
-          <!-- Card Faturamento Est. -->
-          <div class="bg-[#141417] p-5 rounded-2xl border border-white/5 flex items-center justify-between">
-            <div>
-              <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Receita Mensal</p>
-              <h2 class="text-3xl font-extrabold text-white">R$ {{ (s.activeStudents * 450) | number:'1.0-0' }}</h2>
-              <p class="text-[10px] text-slate-400 mt-1">Ticket Médio: R$ 450/aluno</p>
-            </div>
-            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-              <mat-icon>payments</mat-icon>
             </div>
           </div>
 
@@ -276,26 +266,96 @@ export class LoginComponent {
           </div>
         </div>
 
+        <!-- Pedem atenção -->
+        <div class="bg-[#141417] p-6 rounded-2xl border border-white/5 space-y-4">
+          <div class="flex items-center justify-between border-b border-white/5 pb-3">
+            <div class="flex items-center gap-2">
+              <mat-icon class="text-amber-500">notification_important</mat-icon>
+              <h3 class="text-sm font-bold text-white">Pedem atenção</h3>
+            </div>
+            @if (attention(); as a) {
+              @if (a.studentsCount > 0) {
+                <span class="text-xs bg-amber-500/10 border border-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full font-semibold">
+                  {{ a.studentsCount }} aluno(s)
+                </span>
+              }
+            }
+          </div>
+
+          @if (studentsError()) {
+            <p class="text-xs text-red-400">{{ studentsError() }}</p>
+          } @else if (attention(); as a) {
+            @if (a.studentsCount === 0) {
+              <div class="py-6 text-center text-slate-500 text-xs flex flex-col items-center gap-2">
+                <mat-icon class="text-emerald-500">task_alt</mat-icon>
+                Nada pendente hoje.
+              </div>
+            } @else {
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                @for (g of attentionSections(a); track g.key) {
+                  <div class="bg-[#1C1C21] rounded-xl p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                      <p class="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5" [ngClass]="g.tone">
+                        <mat-icon class="!text-sm h-4 w-4">{{ g.icon }}</mat-icon>
+                        {{ g.title }}
+                      </p>
+                      <span class="text-[10px] font-mono font-bold text-slate-400">{{ g.items.length }}</span>
+                    </div>
+                    @if (g.items.length === 0) {
+                      <p class="text-xs text-slate-500">Nenhum aluno.</p>
+                    } @else {
+                      <div class="divide-y divide-white/5">
+                        @for (it of (expanded()[g.key] ? g.items : g.items.slice(0, 5)); track it.studentId) {
+                          <a [routerLink]="it.link" class="py-2 flex items-center justify-between gap-2 hover:bg-white/[0.02] px-1 rounded-lg transition-colors group">
+                            <div class="min-w-0">
+                              <p class="text-xs font-semibold text-white truncate">{{ it.name }}</p>
+                              <p class="text-[10px] text-slate-400">{{ it.reason }}</p>
+                            </div>
+                            <mat-icon class="!text-base text-slate-600 group-hover:text-slate-300 shrink-0">chevron_right</mat-icon>
+                          </a>
+                        }
+                      </div>
+                      @if (g.items.length > 5) {
+                        <button type="button" (click)="toggleExpanded(g.key)" class="text-blue-500 hover:text-blue-400 text-[10px] uppercase font-bold">
+                          {{ expanded()[g.key] ? 'Mostrar menos' : 'Ver todos (' + g.items.length + ')' }}
+                        </button>
+                      }
+                    }
+                  </div>
+                }
+              </div>
+            }
+          } @else {
+            <div class="py-6 text-center text-slate-500 text-xs">Carregando alunos...</div>
+          }
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <!-- Coluna Agenda do Dia -->
           <div class="lg:col-span-2 bg-[#141417] p-6 rounded-2xl border border-white/5 space-y-4">
-            <div class="flex items-center justify-between border-b border-white/5 pb-3">
+            <div class="flex items-center justify-between gap-2 border-b border-white/5 pb-3">
               <div class="flex items-center gap-2">
                 <mat-icon class="text-blue-500">schedule</mat-icon>
                 <h3 class="text-sm font-bold text-white">Agenda do Dia • Atendimentos</h3>
               </div>
-              <span class="text-xs bg-blue-600/10 border border-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-semibold">
-                {{ s.todayAgenda.length }} Treinos Agendados
-              </span>
+              <div class="flex items-center gap-3">
+                <span class="text-xs bg-blue-600/10 border border-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-semibold">
+                  {{ s.todayAgenda.length }} Treinos Agendados
+                </span>
+                <a routerLink="/agenda" class="text-blue-500 hover:text-blue-400 text-[10px] uppercase font-bold whitespace-nowrap">Ver agenda</a>
+              </div>
             </div>
 
             <!-- List -->
+            @if (s.todayAgenda.length === 0) {
+              <div class="py-6 text-center text-slate-500 text-xs">Nenhum atendimento agendado para hoje.</div>
+            }
             <div class="divide-y divide-white/5">
               @for (item of s.todayAgenda; track item.id) {
-                <div class="py-3 flex items-center justify-between hover:bg-white/[0.01] px-2 rounded-lg transition-colors">
+                <a routerLink="/agenda" class="py-3 flex items-center justify-between hover:bg-white/[0.01] px-2 rounded-lg transition-colors">
                   <div class="flex items-center gap-4">
                     <span class="text-xs font-mono font-bold bg-[#1C1C21] text-slate-300 px-2 py-1 rounded">
-                      {{ item.time }}
+                      {{ item.time.slice(0, 5) }}
                     </span>
                     <div>
                       <p class="text-sm font-semibold text-white">{{ item.studentName }}</p>
@@ -303,7 +363,7 @@ export class LoginComponent {
                     </div>
                   </div>
                   <mat-icon class="text-slate-600">chevron_right</mat-icon>
-                </div>
+                </a>
               }
             </div>
           </div>
@@ -357,9 +417,36 @@ export class DashboardComponent implements OnInit {
   trainerName = signal('Personal Trainer');
   currentDate = '';
 
+  students = signal<StudentSummary[] | null>(null);
+  studentsError = signal('');
+  private today = todayYmd();
+  attention = computed<AttentionGroups | null>(() => {
+    const list = this.students();
+    return list ? buildAttentionGroups(list, this.today) : null;
+  });
+  recentlyAssessed = computed(() => countRecentlyAssessed(this.students() ?? [], this.today));
+  expanded = signal<Record<string, boolean>>({});
+
+  attentionSections(a: AttentionGroups) {
+    return [
+      { key: 'overdue', title: 'Reavaliação vencida', icon: 'event_busy', tone: 'text-blue-400', items: a.overdue },
+      { key: 'lgpd', title: 'Termo LGPD pendente', icon: 'gpp_maybe', tone: 'text-amber-400', items: a.lgpdPending },
+      { key: 'visceral', title: 'Gordura visceral alta', icon: 'monitor_heart', tone: 'text-red-400', items: a.visceralHigh },
+    ];
+  }
+
+  toggleExpanded(key: string) {
+    this.expanded.update(e => ({ ...e, [key]: !e[key] }));
+  }
+
   ngOnInit() {
     const d = new Date();
     this.currentDate = d.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    this.dataService.getStudents().subscribe({
+      next: (res) => this.students.set(res ?? []),
+      error: () => this.studentsError.set('Falha ao carregar a lista de alunos.'),
+    });
 
     this.supa.client.auth.getSession().then(({ data }) => {
       const name = data.session?.user?.user_metadata?.['name']
@@ -823,7 +910,6 @@ export class NewStudentComponent implements OnInit {
     heightCm: ['', [Validators.required, Validators.min(50), Validators.max(250)]],
     goal: [''],
     phoneNumber: [''],
-    lgpdConsentStatus: ['PENDING'],
     anamnesis: this.fb.group({
       cardiacCondition: [false],
       jointPain: [false],
@@ -857,7 +943,6 @@ export class NewStudentComponent implements OnInit {
       heightCm: std.height_cm,
       goal: std.goal ?? '',
       phoneNumber: std.phone_number ?? '',
-      lgpdConsentStatus: std.lgpd_consent_status,
       anamnesis: {
         cardiacCondition: ana?.cardiac_condition ?? false,
         jointPain: ana?.joint_pain ?? false,
@@ -882,7 +967,6 @@ export class NewStudentComponent implements OnInit {
       height_cm: +v.heightCm,
       goal: v.goal ?? '',
       phone_number: v.phoneNumber || null,
-      lgpd_consent_status: v.lgpdConsentStatus ?? 'PENDING',
       anamnesis: {
         cardiac_condition: !!v.anamnesis?.cardiacCondition,
         joint_pain: !!v.anamnesis?.jointPain,
@@ -1134,7 +1218,7 @@ export class NewStudentComponent implements OnInit {
                   </div>
                 } @else {
                   <div class="grid grid-cols-2 gap-2">
-                    @for (ph of std.fotos.slice(-2); track ph.id) {
+                    @for (ph of recentPhotos(std.fotos); track ph.id) {
                       <div class="aspect-square bg-slate-800 rounded-lg overflow-hidden relative group border border-white/5">
                         <img [src]="ph.url ?? ph.storage_path" alt="Evolução" class="w-full h-full object-cover" referrerpolicy="no-referrer" />
                         <span class="absolute bottom-1 right-1 bg-black/60 text-[8px] text-slate-300 font-bold px-1.5 py-0.5 rounded uppercase">
@@ -1165,6 +1249,8 @@ export class StudentProfileComponent implements OnInit {
   isLoading = signal(true);
   showTrash = signal(false);
   categoryLabel = categoryLabel;
+  /** As 2 fotos mais recentes (data desc, depois created_at desc). */
+  recentPhotos = (fotos: Photo[]) => selectRecentPhotos(fotos, 2);
 
   ngOnInit() {
     this.route.params.subscribe(p => {

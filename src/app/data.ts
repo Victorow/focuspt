@@ -1,6 +1,9 @@
 import { inject, Injectable } from '@angular/core';
 import { from, Observable } from 'rxjs';
 import { SupabaseService } from './supabase.service';
+import { AGENDA_API, AgendaItem, AgendaPayload, normalizeAgendaItem } from './agenda-utils';
+
+export type { AgendaItem, AgendaPayload } from './agenda-utils';
 
 // =============================================
 // INTERFACES
@@ -124,6 +127,7 @@ export interface Photo {
   date: string;
   category: PhotoCategory;
   storage_path: string;
+  created_at?: string;
   url?: string;
 }
 
@@ -162,7 +166,6 @@ export interface CreateStudentPayload {
   height_cm: number;
   goal?: string;
   phone_number?: string;
-  lgpd_consent_status?: 'PENDING' | 'ACCEPTED';
   anamnesis?: Partial<Anamnesis>;
 }
 
@@ -259,5 +262,26 @@ export class DataService {
 
   deletePhoto(fotoId: string): Observable<{ success: boolean }> {
     return from(this.supa.callFunction<{ success: boolean }>(`fotos/${fotoId}`, undefined, 'DELETE'));
+  }
+
+  // ---------- Agenda (contrato isolado em agenda-utils.ts → AGENDA_API) ----------
+
+  getAgenda(from_: string, to: string): Observable<AgendaItem[]> {
+    return from(
+      this.supa.callFunctionGet<unknown[]>(AGENDA_API.fn, AGENDA_API.listParams(from_, to))
+        .then(rows => (Array.isArray(rows) ? rows : []).map(normalizeAgendaItem)),
+    );
+  }
+
+  createAgendaItem(payload: AgendaPayload): Observable<AgendaItem> {
+    return from(this.supa.callFunction<unknown>(AGENDA_API.fn, payload, 'POST').then(normalizeAgendaItem));
+  }
+
+  updateAgendaItem(id: string, payload: Partial<AgendaPayload>): Observable<AgendaItem> {
+    return from(this.supa.callFunction<unknown>(AGENDA_API.itemPath(id), { id, ...payload }, 'PUT').then(normalizeAgendaItem));
+  }
+
+  deleteAgendaItem(id: string): Observable<{ success: boolean }> {
+    return from(this.supa.callFunction<{ success: boolean }>(AGENDA_API.itemPath(id), { id }, 'DELETE'));
   }
 }

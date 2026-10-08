@@ -43,6 +43,16 @@
             <mat-icon class="!text-base">assignment_ind</mat-icon>
             Alunos & Controle
           </a>
+
+          <a 
+            routerLink="/agenda"
+            routerLinkActive="bg-blue-600/10 text-blue-400 border border-blue-600/20"
+            [class]="currentPath().startsWith('/agenda') ? '' : 'text-slate-400 hover:text-slate-200 border border-transparent'"
+            class="px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-xs font-bold transition-all"
+          >
+            <mat-icon class="!text-base">calendar_month</mat-icon>
+            Agenda
+          </a>
         </nav>
         
         <!-- Mobile Simple Dropdown layout buttons -->
@@ -52,6 +62,9 @@
           </a>
           <a routerLink="/alunos" class="p-2 text-slate-400 hover:text-white" title="Alunos">
             <mat-icon>assignment_ind</mat-icon>
+          </a>
+          <a routerLink="/agenda" class="p-2 text-slate-400 hover:text-white" title="Agenda">
+            <mat-icon>calendar_month</mat-icon>
           </a>
           <button (click)="handleLogout()" class="p-2 text-slate-500 hover:text-red-400" title="Sair">
             <mat-icon>logout</mat-icon>

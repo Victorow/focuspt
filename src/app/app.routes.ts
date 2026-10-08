@@ -10,10 +10,12 @@ import {
   StudentGalleryComponent
 } from './components';
 import { LgpdSignComponent } from './lgpd-sign.component';
+import { AgendaComponent } from './agenda.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: '', component: DashboardComponent },
+  { path: 'agenda', component: AgendaComponent },
   { path: 'alunos', component: StudentsListComponent },
   { path: 'alunos/novo', component: NewStudentComponent },
   { path: 'alunos/:id/editar', component: NewStudentComponent },
