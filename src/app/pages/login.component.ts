@@ -92,8 +92,8 @@ const ROWS: ReadonlyArray<{ l: string; v: string; d: string; c: 'nt' | 'dn' | 'u
                   <div><div class="k">Gordura</div><div class="big">23,7 %</div><div class="dn sm">−3,4 · normal</div></div>
                   <div><div class="k">Massa magra</div><div class="big">37,5 kg</div><div class="dn sm">+1,6</div></div>
                 </div>
-                <div class="layer panel l3"><div class="ph2"></div><div class="ph2 after"></div></div>
-                <div class="layer l4" aria-hidden="true"><span class="tag">21/06 → 05/10</span></div>
+                <div class="layer panel l3"><div class="fig"><div class="body"><div class="sil"></div><div class="head"></div></div><span class="lbl">21/06 · início</span></div><div class="fig after"><div class="body"><div class="sil"></div><div class="head"></div></div><span class="lbl">05/10 · 105 dias</span></div></div>
+                <div class="layer l4" aria-hidden="true"><span class="tag">Fotos pareadas por sessão</span></div>
               </div>
             </div>
           </div>
@@ -154,6 +154,7 @@ const ROWS: ReadonlyArray<{ l: string; v: string; d: string; c: 'nt' | 'dn' | 'u
     .l2 { left: 172px; top: 0; width: 307px; grid-template-columns: 1fr 1fr; transform: translateZ(70px); box-shadow: 0 24px 50px rgba(0,0,0,.35); }
     .l3 { left: 249px; top: 249px; width: 220px; padding: 10px; display: flex; gap: 8px; transform: translateZ(130px); box-shadow: 0 24px 50px rgba(0,0,0,.4); }
     .l3 .ph2 { flex: 1; }
+    .fig{position:relative;flex:1;aspect-ratio:3/4;border-radius:3px;overflow:hidden;background:linear-gradient(180deg,var(--sf2),var(--bd))}.fig .body{position:absolute;left:18%;right:18%;top:9%;bottom:14%;transform-origin:50% 100%}.fig .sil{position:absolute;inset:0;background:var(--tx2);opacity:.55;clip-path:polygon(55% 13.04%,56% 16.09%,75% 18.7%,81% 23.91%,84% 36.96%,86% 50%,85% 54.35%,81% 54.78%,79% 50%,75% 36.96%,73% 28.26%,70% 26.52%,70% 32.61%,66% 43.48%,73% 54.35%,74% 61.3%,73% 71.74%,69% 80.43%,70% 86.96%,64% 95.65%,68% 98.26%,56% 98.26%,56% 95.65%,55% 86.96%,55% 80.43%,53% 69.57%,50% 63.48%,47% 69.57%,45% 80.43%,45% 86.96%,44% 95.65%,44% 98.26%,32% 98.26%,36% 95.65%,30% 86.96%,31% 80.43%,27% 71.74%,26% 61.3%,27% 54.35%,34% 43.48%,30% 32.61%,30% 26.52%,27% 28.26%,25% 36.96%,21% 50%,19% 54.78%,15% 54.35%,14% 50%,16% 36.96%,19% 23.91%,25% 18.7%,44% 16.09%,45% 13.04%)}.fig .head{position:absolute;left:39%;top:2.96%;width:22%;height:9.57%;border-radius:999px;background:var(--tx2);opacity:.55}.fig .lbl{position:absolute;left:0;right:0;bottom:0;padding:4px 6px;font-size:11px;line-height:14px;color:var(--tx);background:rgba(0,0,0,.28)}.fig.after .body{transform:scaleX(.9)}.fig.after .sil,.fig.after .head{opacity:.85}
     .l3 .after { background: var(--refok); }
     .l4 { left: 249px; top: 423px; transform: translateZ(130px); }
     .l4 .tag { background: var(--sf); }

@@ -69,7 +69,8 @@ html, body {
 
   .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 12px; border-radius: 5px; font: inherit; font-weight: 500; cursor: pointer; border: 1px solid var(--bd2); background: var(--sf); color: var(--tx); text-decoration: none; white-space: nowrap; }
   .btn:hover { background: var(--hov); text-decoration: none; }
-  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn:disabled { opacity: .55; cursor: not-allowed; }
+  .btnP:disabled { background: var(--tx2); border-color: var(--tx2); color: var(--bg); opacity: 1; }
   .btnP { background: var(--pb); border-color: var(--pb); color: var(--pt); }
   .btnP:hover { opacity: .9; background: var(--pb); }
   .btnD { border-color: var(--bad); color: var(--bad); }
