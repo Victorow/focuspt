@@ -1,14 +1,13 @@
--- Soft-delete para avaliações: exclusão passa a ser reversível (lixeira).
--- Projeto está em plano free (sem backup/PITR), então soft-delete é a rede
--- de proteção contra perda permanente de dados.
-
+-- Migração 20260617011708 — cópia exata do SQL aplicado em produção (supabase_migrations.schema_migrations). Não editar: crie uma nova migration.
+-- 1) Coluna de soft-delete
 ALTER TABLE public.avaliacoes ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
 
+-- 2) Index parcial: acelera as leituras que só querem avaliações ativas
 CREATE INDEX IF NOT EXISTS idx_avaliacoes_aluno_active
   ON public.avaliacoes (aluno_id)
   WHERE deleted_at IS NULL;
 
--- View de resumo: "última avaliação" ignora itens na lixeira
+-- 3) View de resumo: ignorar avaliações na lixeira ao calcular a "última avaliação"
 CREATE OR REPLACE VIEW public.aluno_summary WITH (security_invoker=on) AS
 SELECT a.id,
     a.personal_trainer_id,
@@ -39,7 +38,7 @@ SELECT a.id,
          LIMIT 1) latest ON true
      LEFT JOIN lgpd_assinaturas lg ON lg.aluno_id = a.id;
 
--- Dashboard: contagens e alertas ignoram avaliações na lixeira
+-- 4) Dashboard: contagens e alertas ignoram a lixeira
 CREATE OR REPLACE FUNCTION public.get_dashboard_stats()
  RETURNS json
  LANGUAGE plpgsql

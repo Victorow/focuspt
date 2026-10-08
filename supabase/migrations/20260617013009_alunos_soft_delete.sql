@@ -1,13 +1,12 @@
--- Soft-delete para alunos: excluir um aluno passa a movê-lo para a lixeira
--- (preservando avaliações e fotos), com restauração possível.
-
+-- Migração 20260617013009 — cópia exata do SQL aplicado em produção (supabase_migrations.schema_migrations). Não editar: crie uma nova migration.
+-- 1) Coluna de soft-delete em alunos
 ALTER TABLE public.alunos ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
 
 CREATE INDEX IF NOT EXISTS idx_alunos_pt_active
   ON public.alunos (personal_trainer_id)
   WHERE deleted_at IS NULL;
 
--- View de resumo: ocultar alunos na lixeira
+-- 2) View de resumo: ocultar alunos na lixeira
 CREATE OR REPLACE VIEW public.aluno_summary WITH (security_invoker=on) AS
 SELECT a.id,
     a.personal_trainer_id,
@@ -39,7 +38,7 @@ SELECT a.id,
      LEFT JOIN lgpd_assinaturas lg ON lg.aluno_id = a.id
   WHERE a.deleted_at IS NULL;
 
--- Dashboard: contagens ignoram alunos na lixeira
+-- 3) Dashboard: contagens ignoram alunos na lixeira
 CREATE OR REPLACE FUNCTION public.get_dashboard_stats()
  RETURNS json
  LANGUAGE plpgsql

@@ -1,5 +1,4 @@
--- supabase/migrations/20261006000001_dobras_biceps_panturrilha_opcionais.sql
-
+-- Migração 20261007004326 — cópia exata do SQL aplicado em produção (supabase_migrations.schema_migrations). Não editar: crie uma nova migration.
 -- Bíceps e panturrilha passam a ser opcionais (não fazem parte do JP7).
 -- Os CHECKs (> 0) continuam valendo: NULL é aceito, zero/negativo não.
 ALTER TABLE public.dobras_cutaneas

@@ -1,17 +1,8 @@
--- supabase/migrations/20261006000002_recalculo_idade_e_classificacao.sql
-
+-- Migração 20261007005236 — cópia exata do SQL aplicado em produção (supabase_migrations.schema_migrations). Não editar: crie uma nova migration.
 -- Recalcula dados derivados de todas as avaliações usando a idade NA DATA da avaliação
--- (antes era a idade no dia do salvamento) e a tabela de % de gordura da Omron HBF-514C.
--- Idempotente: valores são determinísticos e só atualiza quando muda (IS DISTINCT FROM).
--- Não usa as funções legadas public.classify_body_fat / calc_jackson_pollock_7.
-
--- 1) Classificação do % de gordura (bioimpedância) — tabela Omron HBF-514C (Gallagher 2000).
---    Fonte: https://omronbrasil.com/wp-content/uploads/2023/07/balanca_HBF-514C-LA_ES_-PT_im-2.pdf
---    Limites [normal, alto, muito_alto]; menores de 20 anos usam a faixa 20–39.
+-- e a tabela de % de gordura da Omron HBF-514C. Idempotente.
 WITH base AS (
-  SELECT a.id,
-         a.body_fat_percentage AS pct,
-         al.gender,
+  SELECT a.id, a.body_fat_percentage AS pct, al.gender,
          date_part('year', age(a.date, al.birth_date))::int AS idade
   FROM public.avaliacoes a
   JOIN public.alunos al ON al.id = a.aluno_id
@@ -46,12 +37,8 @@ FROM classif c
 WHERE c.id = a.id
   AND a.body_fat_classification IS DISTINCT FROM c.classe;
 
--- 2) % de gordura por dobras: Jackson & Pollock 7 dobras + Siri, idade na data da avaliação.
---    Mesma conta do TS (calcJacksonPollock7): float8, soma na mesma ordem e
---    arredondamento Math.round(x * 100) / 100 ≡ floor(x * 100 + 0.5) / 100.
 WITH base AS (
-  SELECT d.id,
-         al.gender,
+  SELECT d.id, al.gender,
          date_part('year', age(a.date, al.birth_date))::int AS idade,
          ( d.chest_mm::float8 + d.midaxillary_mm::float8 + d.triceps_mm::float8
          + d.subscapular_mm::float8 + d.abdominal_mm::float8 + d.suprailiac_mm::float8
@@ -80,7 +67,6 @@ FROM gordura g
 WHERE g.id = d.id
   AND d.fat_percentage IS DISTINCT FROM g.fat;
 
--- 3) Espelha o % de gordura por dobras recalculado na avaliação correspondente.
 UPDATE public.avaliacoes a
 SET skinfolds_fat_percentage = d.fat_percentage
 FROM public.dobras_cutaneas d

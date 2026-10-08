@@ -1,8 +1,4 @@
--- Lado predominante: o personal mede só o lado dominante (braços, coxas, panturrilhas).
--- Torna nullable as 8 colunas de membros para permitir registrar apenas um lado.
--- Os CHECKs existentes (col > 0) continuam válidos: NULL satisfaz o CHECK no Postgres.
--- As medidas obrigatórias para os cálculos (peso, dobras, cintura, etc.) não são afetadas.
-
+-- Migração 20260618015547 — cópia exata do SQL aplicado em produção (supabase_migrations.schema_migrations). Não editar: crie uma nova migration.
 ALTER TABLE public.circunferencias
   ALTER COLUMN right_arm_relaxed_cm     DROP NOT NULL,
   ALTER COLUMN left_arm_relaxed_cm      DROP NOT NULL,

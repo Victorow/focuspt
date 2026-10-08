@@ -1,3 +1,4 @@
+-- Migração 20260709141542 — cópia exata do SQL aplicado em produção (supabase_migrations.schema_migrations). Não editar: crie uma nova migration.
 -- supabase/migrations/20260709000001_ficha_por_sexo.sql
 
 -- Coxa medial/distal (opcionais, mesmo padrão de antebraço/coxa proximal) + busto (só mulher, mas sem CHECK de sexo no banco).

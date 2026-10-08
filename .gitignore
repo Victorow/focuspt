@@ -31,3 +31,6 @@ yarn-error.log*
 
 # MCP local config
 /.mcp.json
+
+# Supabase CLI local cache
+supabase/.temp/

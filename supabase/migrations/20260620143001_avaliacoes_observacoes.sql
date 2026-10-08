@@ -1,0 +1,2 @@
+-- Migração 20260620143001 — cópia exata do SQL aplicado em produção (supabase_migrations.schema_migrations). Não editar: crie uma nova migration.
+alter table public.avaliacoes add column if not exists observacoes text;
