@@ -1,62 +1,144 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
-@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Geist", -apple-system, "Segoe UI", system-ui, sans-serif;
 }
 
+/* ==========================================================================
+   Tokens — fonte: fpt-design/gen.py (CSS). Tema claro é o padrão;
+   `data-theme="dark"` em <html> força o escuro; sem atributo segue o aparelho.
+   ========================================================================== */
+:root {
+  --bg: #F5F5F4; --sf: #FFFFFF; --sf2: #F0F0EF; --bd: #E2E2E0; --bd2: #CFCFCC;
+  --tx: #1A1B1E; --tx2: #6B6C70; --ln: #2F62A8; --ok: #1F6E48; --bad: #A8402A;
+  --pb: #1A1B1E; --pt: #FFFFFF; --okbg: #E4F1EA; --badbg: #F7E6E1;
+  --ref: #E2E2E0; --refok: #BFD3EA; --hov: #F0F0EF; --focus: #2F62A8; --ph: #D9D9D6;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1A1B1E; --sf: #202124; --sf2: #242529; --bd: #2A2B2F; --bd2: #3A3B40;
+    --tx: #E6E6E3; --tx2: #8A8B90; --ln: #8FB4E8; --ok: #86C7A3; --bad: #E39A86;
+    --pb: #E6E6E3; --pt: #1A1B1E; --okbg: #1F3A2C; --badbg: #44261F;
+    --ref: #2E2F34; --refok: #3E5A7E; --hov: #242529; --focus: #8FB4E8; --ph: #2E2F34;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #1A1B1E; --sf: #202124; --sf2: #242529; --bd: #2A2B2F; --bd2: #3A3B40;
+  --tx: #E6E6E3; --tx2: #8A8B90; --ln: #8FB4E8; --ok: #86C7A3; --bad: #E39A86;
+  --pb: #E6E6E3; --pt: #1A1B1E; --okbg: #1F3A2C; --badbg: #44261F;
+  --ref: #2E2F34; --refok: #3E5A7E; --hov: #242529; --focus: #8FB4E8; --ph: #2E2F34;
+  color-scheme: dark;
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
 html, body {
-  background-color: #0A0A0B;
-  color: #E2E8F0;
-  font-family: var(--font-sans);
   margin: 0;
   min-height: 100vh;
-  scroll-behavior: smooth;
+  background: var(--bg);
+  color: var(--tx);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 18px;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
 }
 
-/* Custom Scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--tx2); }
 
-::-webkit-scrollbar-track {
-  background: #0A0A0B;
-}
+/* Captura limpa para PDF */
+.pdf-export-mode * { text-shadow: none !important; }
 
-::-webkit-scrollbar-thumb {
-  background: #25252B;
-  border-radius: 3px;
-}
+/* ==========================================================================
+   Componentes do sistema visual — mesmos nomes dos artboards (*.dc.html).
+   Ficam em @layer components: utilitários Tailwind ainda vencem quando
+   combinados no mesmo elemento (ex.: class="btn w-full").
+   ========================================================================== */
+@layer components {
+  a { color: var(--ln); text-decoration: none; }
+  a:hover { text-decoration: underline; }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #3B82F6;
-}
+  .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 12px; border-radius: 5px; font: inherit; font-weight: 500; cursor: pointer; border: 1px solid var(--bd2); background: var(--sf); color: var(--tx); text-decoration: none; white-space: nowrap; }
+  .btn:hover { background: var(--hov); text-decoration: none; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btnP { background: var(--pb); border-color: var(--pb); color: var(--pt); }
+  .btnP:hover { opacity: .9; background: var(--pb); }
+  .btnD { border-color: var(--bad); color: var(--bad); }
+  .btnQ { border-color: transparent; background: transparent; }
 
-/* Custom styles for printing or clean PDF capture */
-.pdf-export-mode * {
-  text-shadow: none !important;
-}
+  .panel { background: var(--sf); border: 1px solid var(--bd); border-radius: 6px; }
+  .ph { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 14px; border-bottom: 1px solid var(--bd); font-weight: 500; }
+  .k { color: var(--tx2); font-size: 12px; line-height: 16px; }
 
-/* Simple fade in animation classes */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+  .tab { min-height: 44px; padding: 0 2px; margin-right: 20px; border: 0; border-bottom: 1px solid transparent; background: transparent; font: inherit; font-weight: 500; color: var(--tx2); cursor: pointer; }
+  .tab:hover { color: var(--tx); }
+  .tabOn { color: var(--tx); border-bottom-color: var(--tx); }
 
-.animate-fade-in {
-  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-weight: 500; color: var(--tx2); font-size: 12px; padding: 7px 12px; border-bottom: 1px solid var(--bd); white-space: nowrap; }
+  td { padding: 7px 12px; border-bottom: 1px solid var(--bd); vertical-align: middle; }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: var(--hov); }
+  .n { text-align: right; white-space: nowrap; }
+  .up { color: var(--bad); }
+  .dn { color: var(--ok); }
+  .nt { color: var(--tx2); }
 
-/* Touch friendly form sizing */
-input, select, textarea {
-  transition: all 0.2s ease-in-out;
-}
+  .ref { position: relative; height: 5px; background: var(--ref); border-radius: 1px; min-width: 110px; }
+  .refOk { position: absolute; top: 0; bottom: 0; background: var(--refok); }
+  .refMk { position: absolute; top: -3px; width: 2px; height: 11px; background: var(--tx); }
+  .grp td { color: var(--tx2); font-size: 11px; font-weight: 600; padding: 12px 12px 4px; letter-spacing: .02em; }
+  .grp:hover td { background: transparent; }
 
-input:focus, select:focus, textarea:focus {
-  outline: none;
-  border-color: #3B82F6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  .tag { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 12px; border: 1px solid var(--bd2); color: var(--tx); white-space: nowrap; }
+  .tagW { border-color: transparent; background: var(--badbg); color: var(--bad); }
+  .tagOk { border-color: transparent; background: var(--okbg); color: var(--ok); }
+  .big { font-size: 22px; line-height: 26px; font-weight: 500; letter-spacing: -.01em; }
+
+  .f { display: block; width: 100%; min-height: 40px; border: 1px solid var(--bd2); border-radius: 5px; padding: 0 10px; font: inherit; color: var(--tx); background: var(--sf); }
+  .f:focus { outline: 2px solid var(--focus); outline-offset: -1px; }
+  .f::placeholder { color: var(--tx2); }
+  textarea.f { padding: 8px 10px; min-height: 80px; resize: vertical; }
+  select.f { padding-right: 28px; }
+  .lb { font-weight: 500; font-size: 12px; color: var(--tx2); display: block; margin-bottom: 4px; }
+
+  .kpi { display: grid; gap: 1px; background: var(--bd); border: 1px solid var(--bd); border-radius: 6px; overflow: hidden; }
+  .kpi > div { background: var(--sf); padding: 12px 14px; min-width: 0; }
+  .row { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 6px 14px; border-bottom: 1px solid var(--bd); text-decoration: none; color: var(--tx); }
+  .row:hover { background: var(--hov); text-decoration: none; }
+  .row:last-child { border-bottom: 0; }
+  .ph2 { aspect-ratio: 3 / 4; background: var(--ph); border-radius: 3px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .chk { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+  .chk input { width: 16px; height: 16px; accent-color: var(--pb); }
+
+  .seg { display: inline-flex; border: 1px solid var(--bd2); border-radius: 5px; overflow: hidden; }
+  .seg button { min-height: 40px; padding: 0 12px; border: 0; background: var(--sf); font: inherit; font-weight: 500; color: var(--tx2); cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--bd2); }
+  .seg .on { background: var(--sf2); color: var(--tx); }
+
+  /* Shell */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .pad { width: 100%; max-width: 1360px; margin: 0 auto; padding: 24px 32px 40px; display: flex; flex-direction: column; gap: 16px; }
+  .nav { min-height: 52px; border-bottom: 1px solid var(--bd); background: var(--sf); }
+  .navIn { max-width: 1360px; margin: 0 auto; padding: 0 32px; min-height: 52px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .navItem { display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 5px; color: var(--tx2); font-weight: 500; text-decoration: none; border: 0; background: transparent; font: inherit; cursor: pointer; }
+  .navItem:hover { background: var(--hov); color: var(--tx); text-decoration: none; }
+  .navOn { color: var(--tx); background: var(--sf2); }
+  .crumbs { max-width: 1360px; margin: 0 auto; padding: 16px 32px 0; width: 100%; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  @media (max-width: 720px) {
+    .pad { padding: 16px 16px 32px; }
+    .crumbs { padding: 12px 16px 0; }
+    .navIn { padding: 0 16px; }
+  }
 }

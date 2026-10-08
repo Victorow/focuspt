@@ -1,192 +1,169 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, computed, ElementRef, inject, OnInit, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatIconModule } from '@angular/material/icon';
 import { DataService, StudentSummary } from './data';
-import { AgendaItem, AgendaPayload, groupByDay, weekLabel, weekStart, weekdayLong } from './agenda-utils';
-import { addDays, formatBr, todayYmd } from './date-utils';
+import { AgendaItem, AgendaPayload, groupByDay, weekLabel, weekStart, weekdayShort } from './agenda-utils';
+import { addDays, formatBr, parseYmd, todayYmd } from './date-utils';
+import { nowHm } from './dashboard-utils';
 import { DialogService } from './dialog.service';
 import { ToastService } from './toast.service';
 
 // ==========================================
-// AGENDA — visão semanal (segunda a domingo) com criar/editar/excluir
+// AGENDA — artboard Agenda.dc.html: semana (segunda a domingo) + "Novo atendimento" inline
 // ==========================================
 @Component({
   selector: 'app-agenda',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule, MatIconModule],
+  imports: [RouterLink, ReactiveFormsModule],
   template: `
-    <div class="space-y-6">
-      <!-- Header -->
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-extrabold tracking-tight text-white flex items-center gap-2">
-            <mat-icon class="text-blue-500">calendar_month</mat-icon>
-            Agenda
-          </h1>
-          <p class="text-xs text-slate-400 mt-1">Atendimentos da semana • {{ weekTitle() }}</p>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <div class="flex items-center bg-[#141417] border border-white/5 rounded-xl overflow-hidden">
-            <button type="button" (click)="shiftWeek(-1)" class="p-2 text-slate-400 hover:text-white hover:bg-[#25252B] transition-colors" title="Semana anterior">
-              <mat-icon class="!text-base flex items-center justify-center">chevron_left</mat-icon>
-            </button>
-            <button type="button" (click)="goToday()"
-              [disabled]="isCurrentWeek()"
-              class="px-3 py-2 text-xs font-bold text-slate-300 hover:text-white hover:bg-[#25252B] disabled:text-slate-500 disabled:hover:bg-transparent transition-colors border-x border-white/5">
-              Hoje
-            </button>
-            <button type="button" (click)="shiftWeek(1)" class="p-2 text-slate-400 hover:text-white hover:bg-[#25252B] transition-colors" title="Próxima semana">
-              <mat-icon class="!text-base flex items-center justify-center">chevron_right</mat-icon>
-            </button>
-          </div>
-          <button type="button" (click)="openCreate()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl text-xs font-bold text-white flex items-center gap-2 transition-all shadow-md shadow-blue-600/10">
-            <mat-icon class="!text-xs">add</mat-icon>
-            Novo Atendimento
-          </button>
+    <div class="crumbs">
+      <span>Agenda</span>
+      <div class="acts"><button type="button" class="btn btnP" (click)="openCreate()">Agendar</button></div>
+    </div>
+
+    <div class="pad">
+      <div class="title">
+        <h1 class="big">Agenda</h1>
+        <span class="k">{{ weekTitle() }}</span>
+        <div class="seg nav" role="group" aria-label="Semana">
+          <button type="button" (click)="shiftWeek(-1)">‹ Anterior</button>
+          <button type="button" [class.on]="isCurrentWeek()" (click)="goToday()">Hoje</button>
+          <button type="button" (click)="shiftWeek(1)">Próxima ›</button>
         </div>
       </div>
 
-      <!-- Formulário criar / editar -->
-      @if (formOpen()) {
-        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="bg-[#141417] p-6 rounded-2xl border border-blue-500/20 space-y-4">
-          <div class="flex items-center justify-between border-b border-white/5 pb-3">
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
-              <mat-icon class="text-blue-500 !text-base">{{ editingId() ? 'edit_calendar' : 'event' }}</mat-icon>
-              {{ editingId() ? 'Editar Atendimento' : 'Novo Atendimento' }}
-            </h3>
-            <button type="button" (click)="closeForm()" class="text-slate-500 hover:text-white" title="Fechar">
-              <mat-icon class="!text-base">close</mat-icon>
-            </button>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div class="space-y-1 md:col-span-2">
-              <label class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Aluno</label>
-              <select formControlName="aluno_id"
-                class="w-full px-3 py-2.5 bg-[#1C1C21] border border-white/5 rounded-xl text-sm text-white focus:outline-none">
-                <option value="" disabled>{{ students().length ? 'Selecione o aluno' : 'Nenhum aluno cadastrado' }}</option>
-                @for (st of students(); track st.id) {
-                  <option [value]="st.id">{{ st.name }}</option>
-                }
-              </select>
-              @if (form.get('aluno_id')?.touched && form.get('aluno_id')?.invalid) {
-                <p class="text-xs text-red-400">Selecione um aluno.</p>
-              }
-            </div>
-            <div class="space-y-1">
-              <label class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Data</label>
-              <input type="date" formControlName="date"
-                class="w-full px-3 py-2.5 bg-[#1C1C21] border border-white/5 rounded-xl text-sm text-white focus:outline-none [color-scheme:dark]" />
-              @if (form.get('date')?.touched && form.get('date')?.invalid) {
-                <p class="text-xs text-red-400">Informe a data.</p>
-              }
-            </div>
-            <div class="space-y-1">
-              <label class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Horário</label>
-              <input type="time" formControlName="time"
-                class="w-full px-3 py-2.5 bg-[#1C1C21] border border-white/5 rounded-xl text-sm text-white focus:outline-none [color-scheme:dark]" />
-              @if (form.get('time')?.touched && form.get('time')?.invalid) {
-                <p class="text-xs text-red-400">Informe o horário.</p>
-              }
-            </div>
-            <div class="space-y-1 md:col-span-4">
-              <label class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Foco / Observação (opcional)</label>
-              <input type="text" formControlName="focus" maxlength="500" placeholder="Ex.: Treino de pernas, reavaliação, mobilidade..."
-                class="w-full px-3 py-2.5 bg-[#1C1C21] border border-white/5 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none" />
-            </div>
-          </div>
-
-          <div class="flex justify-end gap-2 pt-2 border-t border-white/5">
-            <button type="button" (click)="closeForm()" class="px-4 py-2 bg-[#1C1C21] hover:bg-[#25252B] rounded-xl text-xs font-bold text-slate-300 transition-colors">
-              Cancelar
-            </button>
-            <button type="submit" [disabled]="form.invalid || isSaving()"
-              class="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed rounded-xl text-xs font-bold text-white flex items-center gap-2 transition-all">
-              @if (isSaving()) {
-                <div class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                Salvando...
-              } @else {
-                <mat-icon class="!text-xs">check</mat-icon>
-                {{ editingId() ? 'Salvar Alterações' : 'Agendar' }}
-              }
-            </button>
-          </div>
-        </form>
-      }
-
-      <!-- Semana -->
       @if (loadError()) {
-        <div class="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 flex items-center justify-between gap-2">
-          {{ loadError() }}
-          <button type="button" (click)="loadWeek()" class="text-red-300 hover:text-white font-bold uppercase text-[10px]">Tentar de novo</button>
+        <div class="panel err">
+          <span class="errT">Não deu para carregar a agenda</span>
+          <span class="nt">Pode ser a internet ou a sessão que expirou. Nada foi perdido.</span>
+          <button type="button" class="btn btnP" (click)="loadWeek()">Tentar de novo</button>
         </div>
-      }
-
-      @if (isLoading()) {
-        <div class="py-12 text-center text-slate-400">
-          <div class="w-8 h-8 border-2 border-white/20 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
-          Carregando agenda...
+      } @else if (isLoading()) {
+        <div class="week" aria-busy="true">
+          @for (d of days(); track d.date) {
+            <div class="panel day skp"><div class="sk" style="width:50%;height:18px"></div><div class="sk" style="width:80%"></div><div class="sk" style="width:60%"></div></div>
+          }
         </div>
       } @else {
-        <div class="bg-[#141417] rounded-2xl border border-white/5 divide-y divide-white/5">
+        <div class="week">
           @for (day of days(); track day.date) {
-            <div class="p-4 md:p-5" [ngClass]="day.date === today ? 'bg-blue-600/5' : ''">
-              <div class="flex items-center justify-between mb-2">
-                <div class="flex items-center gap-2">
-                  <p class="text-xs font-bold uppercase tracking-wider" [ngClass]="day.date === today ? 'text-blue-400' : 'text-slate-400'">
-                    {{ dayName(day.date) }} · {{ fmt(day.date) }}
-                  </p>
-                  @if (day.date === today) {
-                    <span class="text-[9px] bg-blue-600/10 border border-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-bold uppercase">Hoje</span>
-                  }
-                  @if (day.items.length) {
-                    <span class="text-[10px] text-slate-500 font-mono">{{ day.items.length }}</span>
-                  }
-                </div>
-                <button type="button" (click)="openCreate(day.date)" class="text-slate-500 hover:text-blue-400 transition-colors" title="Agendar neste dia">
-                  <mat-icon class="!text-base">add_circle_outline</mat-icon>
-                </button>
+            <div class="panel day" [class.today]="day.date === today">
+              <div class="dh">
+                <span>{{ dayName(day.date) }}</span>
+                @if (day.date === today) {
+                  <span class="tag">{{ dayNum(day.date) }}</span>
+                } @else {
+                  <span class="k">{{ dayNum(day.date) }}</span>
+                }
               </div>
-
               @if (day.items.length === 0) {
-                <p class="text-xs text-slate-600 px-2">Sem atendimentos.</p>
+                <div class="k free">Livre</div>
               } @else {
-                <div class="space-y-1">
-                  @for (item of day.items; track item.id) {
-                    <div class="py-2 flex items-center justify-between gap-3 hover:bg-white/[0.02] px-2 rounded-lg transition-colors">
-                      <div class="flex items-center gap-4 min-w-0">
-                        <span class="text-xs font-mono font-bold bg-[#1C1C21] text-slate-300 px-2 py-1 rounded shrink-0">{{ item.time }}</span>
-                        <div class="min-w-0">
-                          @if (item.aluno_id) {
-                            <a [routerLink]="['/alunos', item.aluno_id]" class="text-sm font-semibold text-white hover:text-blue-400 truncate block">{{ item.studentName }}</a>
-                          } @else {
-                            <p class="text-sm font-semibold text-slate-300 truncate">{{ item.studentName }}</p>
-                          }
-                          @if (item.focus) {
-                            <p class="text-xs text-slate-400 truncate">{{ item.focus }}</p>
-                          }
-                        </div>
-                      </div>
-                      <div class="flex items-center gap-1 shrink-0">
-                        <button type="button" (click)="openEdit(item)" class="p-1.5 text-slate-500 hover:text-white rounded-lg hover:bg-[#25252B] transition-colors" title="Editar">
-                          <mat-icon class="!text-base">edit</mat-icon>
-                        </button>
-                        <button type="button" (click)="onDelete(item)" class="p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-colors" title="Excluir">
-                          <mat-icon class="!text-base">delete_outline</mat-icon>
-                        </button>
-                      </div>
-                    </div>
-                  }
-                </div>
+                @for (item of day.items; track item.id) {
+                  <div class="row ev" [class.past]="isPast(item)">
+                    <span class="hm">{{ item.time }}</span>
+                    @if (item.aluno_id) {
+                      <a class="nm" [routerLink]="['/alunos', item.aluno_id]">{{ item.studentName }}</a>
+                    } @else {
+                      <span class="nm">{{ item.studentName }}</span>
+                    }
+                    @if (item.focus) { <span class="k">{{ item.focus }}</span> }
+                    <span class="ops">
+                      <button type="button" class="lnk" (click)="openEdit(item)">Editar</button>
+                      <button type="button" class="lnk up" (click)="onDelete(item)">Excluir</button>
+                    </span>
+                  </div>
+                }
               }
             </div>
           }
         </div>
       }
+
+      <section class="panel form" #formPanel>
+        <div class="ph">
+          <span>{{ editingId() ? 'Editar atendimento' : 'Novo atendimento' }}</span>
+          @if (editingId()) {
+            <button type="button" class="lnk" (click)="closeForm()">Cancelar</button>
+          } @else {
+            <span class="k">{{ students().length ? students().length + ' alunos' : 'Nenhum aluno cadastrado' }}</span>
+          }
+        </div>
+        <form [formGroup]="form" (ngSubmit)="onSubmit()" class="fg" novalidate>
+          <div>
+            <label class="lb" for="al">Aluno</label>
+            <select id="al" class="f" formControlName="aluno_id" #alunoSel>
+              <option value="" disabled>{{ students().length ? 'Selecione' : 'Nenhum aluno cadastrado' }}</option>
+              @for (st of students(); track st.id) {
+                <option [value]="st.id">{{ st.name }}</option>
+              }
+            </select>
+            @if (form.get('aluno_id')?.touched && form.get('aluno_id')?.invalid) {
+              <div class="k up">Selecione um aluno.</div>
+            }
+          </div>
+          <div>
+            <label class="lb" for="dt">Data</label>
+            <input id="dt" class="f" type="date" formControlName="date" />
+            @if (form.get('date')?.touched && form.get('date')?.invalid) {
+              <div class="k up">Informe a data.</div>
+            }
+          </div>
+          <div>
+            <label class="lb" for="hr">Hora</label>
+            <input id="hr" class="f" type="time" formControlName="time" />
+            @if (form.get('time')?.touched && form.get('time')?.invalid) {
+              <div class="k up">Informe a hora.</div>
+            }
+          </div>
+          <div>
+            <label class="lb" for="fc">Foco</label>
+            <input id="fc" class="f" type="text" formControlName="focus" maxlength="500" />
+          </div>
+          <button type="submit" class="btn btnP" [disabled]="form.invalid || isSaving()">
+            {{ isSaving() ? 'Salvando...' : (editingId() ? 'Salvar' : 'Agendar') }}
+          </button>
+        </form>
+      </section>
     </div>
   `,
+  styles: [`
+    .acts { margin-left: auto; display: flex; gap: 6px; }
+    .title { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .title h1 { margin: 0; }
+    .nav { margin-left: auto; }
+    .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+    .day { min-width: 0; }
+    .day.today { border-color: var(--tx2); }
+    .dh { padding: 8px 10px; border-bottom: 1px solid var(--bd); font-weight: 500; display: flex; justify-content: space-between; align-items: center; }
+    .free { padding: 10px; }
+    .ev { padding: 6px 10px; flex-direction: column; align-items: flex-start; gap: 0; }
+    .ev.past { color: var(--tx2); }
+    .ev.past .nm { color: var(--tx2); }
+    .hm { font-size: 12px; }
+    .nm { font-weight: 500; color: var(--tx); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+    .ops { display: flex; gap: 10px; }
+    .lnk { border: 0; background: transparent; padding: 0; font: inherit; font-size: 12px; color: var(--ln); cursor: pointer; min-height: 28px; }
+    .lnk:hover { text-decoration: underline; }
+    .lnk.up { color: var(--bad); }
+    .form { max-width: 720px; }
+    .fg { padding: 14px; display: grid; grid-template-columns: 2fr 1fr 1fr 2fr auto; gap: 12px; align-items: start; }
+    .fg .btn { margin-top: 20px; }
+    .err { padding: 20px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+    .errT { font-weight: 600; }
+    .sk { height: 12px; background: var(--ph); border-radius: 3px; }
+    .skp { padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+    @media (max-width: 900px) {
+      .week { grid-template-columns: 1fr; }
+      .fg { grid-template-columns: 1fr 1fr; }
+      .fg > div:first-child, .fg > div:nth-child(4) { grid-column: 1 / -1; }
+      .fg .btn { grid-column: 1 / -1; margin-top: 0; }
+    }
+    @media (max-width: 720px) {
+      .nav { margin-left: 0; }
+      .fg { grid-template-columns: 1fr; }
+    }
+  `],
 })
 export class AgendaComponent implements OnInit {
   private dataService = inject(DataService);
@@ -195,6 +172,10 @@ export class AgendaComponent implements OnInit {
   private fb = inject(FormBuilder);
 
   readonly today = todayYmd();
+  private readonly now = nowHm(new Date());
+
+  private formPanel = viewChild<ElementRef<HTMLElement>>('formPanel');
+  private alunoSel = viewChild<ElementRef<HTMLSelectElement>>('alunoSel');
 
   start = signal(weekStart(this.today));
   items = signal<AgendaItem[]>([]);
@@ -202,7 +183,6 @@ export class AgendaComponent implements OnInit {
   isLoading = signal(true);
   loadError = signal('');
   isSaving = signal(false);
-  formOpen = signal(false);
   editingId = signal<string | null>(null);
 
   days = computed(() => groupByDay(this.items(), this.start()));
@@ -216,8 +196,13 @@ export class AgendaComponent implements OnInit {
     focus: [''],
   });
 
-  dayName = weekdayLong;
-  fmt = (d: string) => formatBr(d);
+  dayName = weekdayShort;
+  dayNum = (d: string) => String(parseYmd(d)?.d ?? '').padStart(2, '0');
+
+  /** Já aconteceu: dia anterior a hoje, ou hoje com horário passado. */
+  isPast(item: AgendaItem): boolean {
+    return item.date < this.today || (item.date === this.today && item.time < this.now);
+  }
 
   ngOnInit() {
     this.dataService.getStudents().subscribe({
@@ -261,18 +246,23 @@ export class AgendaComponent implements OnInit {
   openCreate(date?: string) {
     this.editingId.set(null);
     this.form.reset({ aluno_id: '', date: date ?? this.today, time: '', focus: '' });
-    this.formOpen.set(true);
+    this.focusForm();
   }
 
   openEdit(item: AgendaItem) {
     this.editingId.set(item.id);
     this.form.reset({ aluno_id: item.aluno_id ?? '', date: item.date, time: item.time, focus: item.focus });
-    this.formOpen.set(true);
+    this.focusForm();
   }
 
   closeForm() {
-    this.formOpen.set(false);
     this.editingId.set(null);
+    this.form.reset({ aluno_id: '', date: this.today, time: '', focus: '' });
+  }
+
+  private focusForm() {
+    this.formPanel()?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    this.alunoSel()?.nativeElement.focus();
   }
 
   onSubmit() {
@@ -293,7 +283,7 @@ export class AgendaComponent implements OnInit {
     req.subscribe({
       next: () => {
         this.isSaving.set(false);
-        this.toast.success(id ? 'Atendimento atualizado!' : 'Atendimento agendado!');
+        this.toast.success(id ? 'Atendimento atualizado.' : 'Atendimento agendado.');
         this.closeForm();
         // Leva a semana até a data salva, se for outra.
         const target = weekStart(payload.date);

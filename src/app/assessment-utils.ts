@@ -61,3 +61,79 @@ export function fatClassificationTone(label: string | null | undefined): 'good' 
     default: return 'neutral';
   }
 }
+
+// =============================================
+// Entrada decimal (vírgula ou ponto), formatação pt-BR e simetria
+// =============================================
+
+/** "49,2" | "49.2" | 49.2 → 49.2. Vazio ou inválido → null. */
+export function parseDecimal(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const s = value.replace(/\s/g, '').replace(',', '.');
+  if (s === '' || s === '-' || s === '.') return null;
+  if (!/^-?\d*\.?\d+$|^-?\d+\.?\d*$/.test(s)) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** parseDecimal com regra "maior que zero" para opcionais: vazio/0 → undefined. */
+export function parsePositive(value: string | number | null | undefined): number | undefined {
+  const n = parseDecimal(value);
+  return n !== null && n > 0 ? n : undefined;
+}
+
+/** Valor numérico → texto de campo ("49,2"). null/undefined → ''. */
+export function toInputText(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '';
+  return String(value).replace('.', ',');
+}
+
+/** Número com vírgula decimal e `digits` casas. null → '—'. */
+export function formatNum(value: number | null | undefined, digits = 1): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '—';
+  return value.toFixed(digits).replace('.', ',');
+}
+
+const MINUS = '\u2212';
+
+/** Δ com sinal explícito: "+1,4", "−0,5", "0,0". null → '—'. */
+export function formatDelta(value: number | null | undefined, digits = 1): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '—';
+  const rounded = Number(value.toFixed(digits));
+  if (rounded === 0) return (0).toFixed(digits).replace('.', ',');
+  const sign = rounded > 0 ? '+' : MINUS;
+  return sign + Math.abs(rounded).toFixed(digits).replace('.', ',');
+}
+
+export type Direction = 'down' | 'up' | 'neutral';
+
+/**
+ * Classe de cor do Δ: verde/vermelho dizem favorável/desfavorável, não subiu/desceu.
+ * `good` = sentido favorável da medida ('down' para gordura, 'up' para músculo, 'neutral' sem juízo).
+ */
+export function deltaClass(delta: number | null | undefined, good: Direction): 'up' | 'dn' | 'nt' {
+  if (delta === null || delta === undefined || !Number.isFinite(delta) || delta === 0 || good === 'neutral') return 'nt';
+  const favorable = good === 'down' ? delta < 0 : delta > 0;
+  return favorable ? 'dn' : 'up';
+}
+
+export interface Symmetry { text: string; cls: 'up' | 'dn' | 'nt' }
+
+/** Simetria D/E: ≤0,5 cm simétrico; >1,5 cm pede conferência. */
+export function symmetry(right: number | null | undefined, left: number | null | undefined): Symmetry {
+  if (right === null || right === undefined || left === null || left === undefined) return { text: '—', cls: 'nt' };
+  const diff = Math.round(Math.abs(right - left) * 10) / 10;
+  if (diff <= 0.5) return { text: 'simétrico', cls: 'dn' };
+  const side = right > left ? 'D' : 'E';
+  const base = `${side} +${formatNum(diff)}`;
+  return diff > 1.5 ? { text: `${base} · confira`, cls: 'up' } : { text: base, cls: 'nt' };
+}
+
+/** Variação de água corporal acima de 15 pontos entre avaliações é improvável — pede conferência. */
+export const WATER_CHANGE_LIMIT = 15;
+
+export function implausibleWaterChange(current: number | null | undefined, previous: number | null | undefined): boolean {
+  if (current === null || current === undefined || previous === null || previous === undefined) return false;
+  return Math.abs(current - previous) > WATER_CHANGE_LIMIT;
+}

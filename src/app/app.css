@@ -1,0 +1,19 @@
+:host { display: flex; flex-direction: column; min-height: 100vh; }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 600; letter-spacing: -.02em; color: var(--tx); margin-right: 16px; }
+/* Símbolo FocusPT (fpt-design Logo.dc.html / gen.py .mk, 26px na barra do app) */
+.mk { position: relative; display: inline-block; width: 26px; height: 26px; border-radius: 7px; background: var(--pb); flex: none; }
+.mk i { position: absolute; display: block; }
+.mk .r { inset: 22.5%; border: 2px solid var(--pt); border-radius: 50%; }
+.mk .b { left: 15%; right: 15%; top: 50%; height: 2px; margin-top: -1px; background: var(--pt); border-radius: 1px; }
+.mk .t1, .mk .t2 { top: 50%; width: 2px; height: 6px; margin-top: -3px; background: var(--pt); border-radius: 1px; }
+.mk .t1 { left: 15%; } .mk .t2 { right: 15%; }
+.mk .c { left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: var(--pb); box-shadow: 0 0 0 2px var(--pt); }
+.brand:hover { text-decoration: none; }
+.navEnd { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.navMenu { position: relative; }
+.pop { position: absolute; right: 0; top: calc(100% + 4px); z-index: 50; min-width: 220px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.popName { display: none; }
+@media (max-width: 720px) {
+  .navName { display: none; }
+  .popName { display: block; }
+}

@@ -1,7 +1,14 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": "dist/app/browser",
+  "outputDirectory": "dist/site",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/app", "destination": "/app/index.html" },
+    { "source": "/app/(.*)", "destination": "/app/index.html" }
+  ],
+  "redirects": [
+    { "source": "/login", "destination": "/app/login", "permanent": true },
+    { "source": "/alunos", "destination": "/app/alunos", "permanent": true },
+    { "source": "/alunos/(.*)", "destination": "/app/alunos/$1", "permanent": true },
+    { "source": "/agenda", "destination": "/app/agenda", "permanent": true }
   ]
 }

@@ -1,60 +1,41 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { MatIconModule } from '@angular/material/icon';
 import { DialogService } from './dialog.service';
 
+// Diálogo do sistema visual (Estados.dc.html): painel com sombra, título 15/600,
+// corpo em .nt e botões no rodapé. Perigo usa .btnD; o resto, .btnP. Sem ícones.
 @Component({
   selector: 'app-dialog',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, MatIconModule],
   template: `
     @if (dialog.state(); as d) {
-      <div class="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
-           (click)="d.kind === 'alert' ? dialog.resolve(false) : null">
-        <div class="w-full max-w-sm bg-[#141417] border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
-             (click)="$event.stopPropagation()">
-          <div class="p-5 flex items-start gap-3">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                 [ngClass]="{
-                   'bg-blue-500/15 border border-blue-500/30': d.tone === 'info',
-                   'bg-red-500/15 border border-red-500/30': d.tone === 'danger' || d.tone === 'error',
-                   'bg-emerald-500/15 border border-emerald-500/30': d.tone === 'success'
-                 }">
-              <mat-icon [ngClass]="{
-                'text-blue-400': d.tone === 'info',
-                'text-red-400': d.tone === 'danger' || d.tone === 'error',
-                'text-emerald-400': d.tone === 'success'
-              }">
-                {{ d.tone === 'success' ? 'check_circle' : d.tone === 'info' ? 'info' : d.kind === 'confirm' ? 'help' : 'error' }}
-              </mat-icon>
-            </div>
-            <div class="flex-1 pt-0.5">
-              <h2 class="text-sm font-extrabold text-white">{{ d.title }}</h2>
-              <p class="text-xs text-slate-400 mt-1 leading-relaxed whitespace-pre-line">{{ d.message }}</p>
-            </div>
-          </div>
-          <div class="px-5 py-4 bg-[#0F0F12] flex items-center justify-end gap-2">
+      <div class="scrim" (click)="d.kind === 'alert' ? dialog.resolve(false) : null">
+        <div class="panel box" role="dialog" aria-modal="true" aria-labelledby="dlg-title" (click)="$event.stopPropagation()">
+          <div id="dlg-title" class="title">{{ d.title }}</div>
+          <div class="nt body">{{ d.message }}</div>
+          <div class="foot">
             @if (d.kind === 'confirm') {
-              <button (click)="dialog.resolve(false)"
-                      class="px-4 py-2 rounded-xl text-xs font-bold text-slate-300 hover:bg-white/5 transition-colors">
-                {{ d.cancelText }}
-              </button>
+              <button type="button" class="btn" (click)="dialog.resolve(false)">{{ d.cancelText }}</button>
             }
-            <button (click)="dialog.resolve(true)"
-                    class="px-4 py-2 rounded-xl text-xs font-extrabold text-white transition-all shadow-md"
-                    [ngClass]="{
-                      'bg-blue-600 hover:bg-blue-500': d.tone === 'info' || d.tone === 'success',
-                      'bg-red-600 hover:bg-red-500': d.tone === 'danger' || d.tone === 'error'
-                    }">
-              {{ d.confirmText }}
-            </button>
+            <button type="button" class="btn" [class.btnD]="isDanger(d.tone)" [class.btnP]="!isDanger(d.tone)"
+                    (click)="dialog.resolve(true)">{{ d.confirmText }}</button>
           </div>
         </div>
       </div>
     }
   `,
+  styles: [`
+    .scrim { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0, 0, 0, .45); }
+    .box { width: 100%; max-width: 420px; padding: 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 12px 32px rgba(0, 0, 0, .25); }
+    .title { font-weight: 600; font-size: 15px; line-height: 20px; }
+    .body { white-space: pre-line; }
+    .foot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; flex-wrap: wrap; }
+  `],
 })
 export class DialogComponent {
   dialog = inject(DialogService);
+
+  isDanger(tone: string): boolean {
+    return tone === 'danger' || tone === 'error';
+  }
 }

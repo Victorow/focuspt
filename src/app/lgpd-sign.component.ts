@@ -1,9 +1,7 @@
 import {
   Component, inject, OnInit, signal, ViewChild, ElementRef, AfterViewInit, NgZone
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { MatIconModule } from '@angular/material/icon';
 import { SupabaseService } from './supabase.service';
 import {
   LGPD_TERM_TEXT, LGPD_TERM_VERSION,
@@ -15,130 +13,100 @@ import { environment } from '../environments/environment';
 @Component({
   selector: 'app-lgpd-sign',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatIconModule],
+  imports: [RouterLink],
   template: `
-    <div class="space-y-6 max-w-3xl mx-auto animate-fade-in">
+    <div class="crumbs">
+      <a routerLink="/alunos" class="k">Alunos</a><span class="k">›</span>
+      <a [routerLink]="['/alunos', studentId()]" class="k">{{ studentName() || 'Aluno' }}</a><span class="k">›</span>
+      <span>LGPD</span>
+    </div>
 
-      <!-- Header -->
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-2xl font-extrabold tracking-tight text-white flex items-center gap-2">
-            <mat-icon class="text-blue-500">gavel</mat-icon>
-            Consentimento LGPD
-          </h1>
-          <p class="text-xs text-slate-400 mt-1">
-            Aluno: <strong class="text-blue-400">{{ studentName() }}</strong> •
-            Versão do Termo: {{ termVersion }}
-          </p>
-        </div>
-        <a [routerLink]="['/alunos', studentId()]"
-           class="px-3 py-2 bg-[#1C1C21] border border-white/5 rounded-xl text-xs font-bold text-slate-300 flex items-center gap-1.5 hover:bg-[#25252B] transition-colors">
-          <mat-icon class="!text-sm">arrow_back</mat-icon>
-          Voltar
-        </a>
+    <div class="pad narrow">
+      <div class="headLine">
+        <h1 class="big">Consentimento LGPD@if (studentName()) { · {{ studentName() }}}</h1>
+        <span class="k">termo v{{ termVersion }} · Lei 13.709/2018</span>
       </div>
 
-      <!-- Já assinado -->
       @if (alreadySigned()) {
-        <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-6 space-y-4">
-          <div class="flex items-center gap-3">
-            <mat-icon class="text-emerald-400 !text-2xl">verified</mat-icon>
-            <div>
-              <p class="text-sm font-bold text-emerald-400">Termo já assinado</p>
-              <p class="text-xs text-slate-400">Assinado em: {{ signedAt() }}</p>
-            </div>
-          </div>
-          @if (signatureUrl()) {
-            <div>
-              <p class="text-xs text-slate-500 mb-2 uppercase font-bold tracking-wider">Assinatura registrada:</p>
-              <img [src]="signatureUrl()" alt="Assinatura LGPD"
-                   class="max-h-24 bg-white/5 border border-white/10 rounded-xl p-2 object-contain" />
-            </div>
-          }
-          <a [routerLink]="['/alunos', studentId()]"
-             class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition-all">
-            <mat-icon class="!text-sm">arrow_back</mat-icon>
-            Voltar ao Perfil
-          </a>
-        </div>
-      }
-
-      <!-- Formulário de assinatura -->
-      @if (!alreadySigned()) {
-        <!-- Termo LGPD -->
-        <div class="bg-[#141417] border border-white/5 rounded-2xl p-6">
-          <h2 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
-            <mat-icon class="text-slate-400 !text-base">article</mat-icon>
-            Leia o Termo antes de assinar
-          </h2>
-          <div class="h-56 overflow-y-auto pr-2 text-xs text-slate-400 leading-relaxed
-                      scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent
-                      border border-white/5 rounded-xl p-4 bg-[#0A0A0B] font-mono whitespace-pre-wrap">{{ termText }}</div>
-        </div>
-
-        <!-- Canvas de assinatura -->
-        <div class="bg-[#141417] border border-white/5 rounded-2xl p-6 space-y-4">
-          <div class="flex items-center justify-between">
-            <h2 class="text-sm font-bold text-white flex items-center gap-2">
-              <mat-icon class="text-blue-500 !text-base">draw</mat-icon>
-              Assine com o mouse ou toque na tela
-            </h2>
-            <button (click)="clearSignature()"
-                    class="px-3 py-1.5 bg-[#1C1C21] border border-white/5 rounded-lg text-xs text-slate-400 hover:text-white hover:border-white/20 transition-all flex items-center gap-1">
-              <mat-icon class="!text-xs">restart_alt</mat-icon>
-              Limpar
-            </button>
-          </div>
-
-          <div class="relative rounded-xl overflow-hidden border-2 transition-all"
-               [class]="isDrawing() ? 'border-blue-500/60' : 'border-white/10'">
-            <canvas #signatureCanvas
-                    width="700" height="200"
-                    class="w-full bg-white cursor-crosshair touch-none block"
-                    style="height: 200px;"
-                    (mousedown)="startDraw($event)"
-                    (mousemove)="draw($event)"
-                    (mouseup)="stopDraw()"
-                    (mouseleave)="stopDraw()"
-                    (touchstart)="startDrawTouch($event)"
-                    (touchmove)="drawTouch($event)"
-                    (touchend)="stopDraw()">
-            </canvas>
-            @if (!hasSigned()) {
-              <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <p class="text-slate-300/50 text-sm font-light select-none">Assine aqui</p>
-              </div>
+        <section class="panel">
+          <div class="ph"><span>Termo já assinado</span><span class="tag tagOk">LGPD assinado</span></div>
+          <div class="body stack">
+            <div class="nt">Assinado em {{ signedAt() }} · termo v{{ termVersion }}. Para revogar ou corrigir, fale com o personal.</div>
+            @if (signatureUrl()) {
+              <img class="sig" [src]="signatureUrl()" alt="Assinatura registrada do aluno" />
             }
+            <div><a class="btn" [routerLink]="['/alunos', studentId()]">Voltar ao perfil</a></div>
           </div>
+        </section>
+      } @else {
+        <div class="k">Entregue o aparelho ao aluno. Ele lê o termo e assina com o dedo ou o mouse.</div>
 
-          <p class="text-[10px] text-slate-500">
-            Ao clicar em "Confirmar Assinatura", o titular declara ter lido e concordado com o
-            Termo de Consentimento acima — Lei nº 13.709/2018 (LGPD).
-          </p>
+        <section class="panel">
+          <div class="ph"><span>Termo de consentimento para tratamento de dados pessoais</span><span class="k">role até o fim</span></div>
+          <div class="term" tabindex="0">{{ termText }}</div>
+        </section>
 
-          @if (errorMessage()) {
-            <div class="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400">
-              {{ errorMessage() }}
+        <section class="panel">
+          <div class="ph"><span>Assinatura</span><button type="button" class="btn" (click)="clearSignature()">Limpar</button></div>
+          <div class="body stack">
+            <div class="padBox" [class.padOn]="isDrawing()">
+              <div class="base" aria-hidden="true"></div>
+              @if (!hasSigned()) {
+                <span class="k hint">Assine sobre a linha</span>
+              }
+              <canvas #signatureCanvas width="700" height="200" aria-label="Área de assinatura"
+                      (mousedown)="startDraw($event)"
+                      (mousemove)="draw($event)"
+                      (mouseup)="stopDraw()"
+                      (mouseleave)="stopDraw()"
+                      (touchstart)="startDrawTouch($event)"
+                      (touchmove)="drawTouch($event)"
+                      (touchend)="stopDraw()">
+              </canvas>
             </div>
-          }
 
-          <button (click)="confirmSignature()"
-                  [disabled]="!hasSigned() || isSubmitting()"
-                  class="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/40 disabled:cursor-not-allowed
-                         text-sm font-bold text-white rounded-xl transition-all shadow-lg shadow-blue-600/10
-                         flex items-center justify-center gap-2">
-            @if (isSubmitting()) {
-              <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              Registrando assinatura...
-            } @else {
-              <mat-icon class="!text-sm">verified</mat-icon>
-              Confirmar Assinatura LGPD
+            <label class="chk">
+              <input type="checkbox" [checked]="agreed()" (change)="agreed.set($any($event.target).checked)" />
+              Li o termo e concordo com o tratamento dos meus dados para as finalidades descritas.
+            </label>
+
+            @if (errorMessage()) {
+              <div class="k up" role="alert">{{ errorMessage() }}</div>
             }
-          </button>
-        </div>
+
+            <div class="foot">
+              <a class="btn" [routerLink]="['/alunos', studentId()]">Agora não</a>
+              <button type="button" class="btn btnP" (click)="confirmSignature()" [disabled]="!hasSigned() || !agreed() || isSubmitting()">
+                {{ isSubmitting() ? 'Registrando…' : 'Confirmar assinatura' }}
+              </button>
+            </div>
+          </div>
+        </section>
       }
     </div>
   `,
+  styles: [`
+    .crumbs a.k { color: var(--tx2); }
+    .pad.narrow { max-width: 1000px; }
+    .headLine { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .headLine h1 { margin: 0; }
+    .body { padding: 14px; }
+    .stack { display: flex; flex-direction: column; gap: 12px; }
+    .term { padding: 14px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; }
+    .term:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+    /* Papel da assinatura: sempre claro (a imagem gravada é a mesma do PDF, que é sempre claro). */
+    .padBox { position: relative; height: 200px; border: 1px solid var(--bd2); border-radius: 5px; background: #FFFFFF; overflow: hidden; --tx2: #6B6C70; }
+    .padOn { border-color: var(--focus); }
+    .padBox canvas { position: relative; display: block; width: 100%; height: 200px; touch-action: none; cursor: crosshair; }
+    .base { position: absolute; left: 24px; right: 24px; bottom: 48px; height: 1px; background: var(--tx2); }
+    .hint { position: absolute; left: 24px; bottom: 24px; pointer-events: none; }
+    .sig { max-height: 120px; max-width: 100%; background: #FFFFFF; border: 1px solid var(--bd2); border-radius: 5px; padding: 8px; object-fit: contain; }
+    .foot { display: flex; justify-content: flex-end; gap: 8px; }
+    @media (max-width: 720px) {
+      .foot { flex-direction: column-reverse; }
+      .foot .btn { width: 100%; }
+    }
+  `],
 })
 export class LgpdSignComponent implements OnInit, AfterViewInit {
   @ViewChild('signatureCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
@@ -157,6 +125,7 @@ export class LgpdSignComponent implements OnInit, AfterViewInit {
   signedAt = signal('');
   signatureUrl = signal('');
   hasSigned = signal(false);
+  agreed = signal(false);
   isDrawing = signal(false);
   isSubmitting = signal(false);
   errorMessage = signal('');
@@ -183,7 +152,7 @@ export class LgpdSignComponent implements OnInit, AfterViewInit {
     if (!canvas) return;
     this.ctx = canvas.getContext('2d');
     if (!this.ctx) return;
-    this.ctx.strokeStyle = '#1e3a5f';
+    this.ctx.strokeStyle = '#1A1B1E'; // tinta escura sobre o papel claro
     this.ctx.lineWidth = 2.5;
     this.ctx.lineCap = 'round';
     this.ctx.lineJoin = 'round';
@@ -281,10 +250,14 @@ export class LgpdSignComponent implements OnInit, AfterViewInit {
   async confirmSignature() {
     const canvas = this.canvasRef?.nativeElement;
     if (!canvas) return;
+    if (!this.agreed()) {
+      this.errorMessage.set('Marque a caixa de concordância para confirmar.');
+      return;
+    }
 
     const dataUrl = canvas.toDataURL('image/png');
     if (isDataUrlSignatureEmpty(dataUrl)) {
-      this.errorMessage.set('A assinatura está em branco. Por favor, assine no campo acima.');
+      this.errorMessage.set('A assinatura está em branco. Assine sobre a linha.');
       return;
     }
 
@@ -294,7 +267,7 @@ export class LgpdSignComponent implements OnInit, AfterViewInit {
 
     try {
       const { data: { session } } = await this.supa.client.auth.getSession();
-      if (!session) throw new Error('Sessão expirada');
+      if (!session) throw new Error('Sessão expirada. Entre de novo.');
 
       const res = await fetch(`${environment.functionsUrl}/lgpd-sign`, {
         method: 'POST',
@@ -307,13 +280,13 @@ export class LgpdSignComponent implements OnInit, AfterViewInit {
       });
 
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? 'Erro ao salvar assinatura');
+      if (!res.ok) throw new Error(json.error ?? 'Não foi possível salvar a assinatura.');
 
       this.zone.run(() => {
         this.router.navigate(['/alunos', this.studentId()]);
       });
     } catch (err) {
-      this.errorMessage.set(err instanceof Error ? err.message : 'Erro inesperado');
+      this.errorMessage.set(err instanceof Error ? err.message : 'Não foi possível salvar. Verifique a conexão.');
       this.isSubmitting.set(false);
     }
   }

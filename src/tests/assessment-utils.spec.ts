@@ -144,3 +144,107 @@ describe('fatClassificationTone', () => {
     expect(fatClassificationTone(null)).toBe('neutral');
   });
 });
+
+// =============================================
+// parseDecimal / parsePositive / toInputText
+// =============================================
+import { parseDecimal, parsePositive, toInputText, formatNum, formatDelta, deltaClass, symmetry, implausibleWaterChange } from '../app/assessment-utils';
+
+describe('parseDecimal', () => {
+  it('aceita vírgula ou ponto', () => {
+    expect(parseDecimal('49,2')).toBe(49.2);
+    expect(parseDecimal('49.2')).toBe(49.2);
+    expect(parseDecimal(' 1185 ')).toBe(1185);
+    expect(parseDecimal(',5')).toBe(0.5);
+    expect(parseDecimal(3)).toBe(3);
+  });
+
+  it('vazio ou inválido → null', () => {
+    expect(parseDecimal('')).toBeNull();
+    expect(parseDecimal(null)).toBeNull();
+    expect(parseDecimal(undefined)).toBeNull();
+    expect(parseDecimal('abc')).toBeNull();
+    expect(parseDecimal('1,2,3')).toBeNull();
+    expect(parseDecimal(NaN)).toBeNull();
+  });
+});
+
+describe('parsePositive', () => {
+  it('só valores > 0; vazio e zero → undefined', () => {
+    expect(parsePositive('0,8')).toBe(0.8);
+    expect(parsePositive('0')).toBeUndefined();
+    expect(parsePositive('')).toBeUndefined();
+    expect(parsePositive(null)).toBeUndefined();
+  });
+});
+
+describe('toInputText', () => {
+  it('usa vírgula decimal e vazio para ausente', () => {
+    expect(toInputText(49.2)).toBe('49,2');
+    expect(toInputText(27)).toBe('27');
+    expect(toInputText(null)).toBe('');
+    expect(toInputText(undefined)).toBe('');
+  });
+});
+
+describe('formatNum / formatDelta', () => {
+  it('formata com vírgula e casas fixas', () => {
+    expect(formatNum(49.2)).toBe('49,2');
+    expect(formatNum(1185, 0)).toBe('1185');
+    expect(formatNum(0.7191, 2)).toBe('0,72');
+    expect(formatNum(null)).toBe('—');
+  });
+
+  it('Δ com sinal explícito e sinal de menos tipográfico', () => {
+    expect(formatDelta(1.4)).toBe('+1,4');
+    expect(formatDelta(-0.5)).toBe('\u22120,5');
+    expect(formatDelta(0)).toBe('0,0');
+    expect(formatDelta(-0.04)).toBe('0,0');
+    expect(formatDelta(-3, 0)).toBe('\u22123');
+    expect(formatDelta(null)).toBe('—');
+  });
+});
+
+describe('deltaClass', () => {
+  it('verde/vermelho é favorável/desfavorável, não subiu/desceu', () => {
+    expect(deltaClass(-3.4, 'down')).toBe('dn');
+    expect(deltaClass(+2, 'down')).toBe('up');
+    expect(deltaClass(+1.4, 'up')).toBe('dn');
+    expect(deltaClass(-1.4, 'up')).toBe('up');
+  });
+  it('sem juízo ou sem variação → neutro', () => {
+    expect(deltaClass(+5, 'neutral')).toBe('nt');
+    expect(deltaClass(0, 'down')).toBe('nt');
+    expect(deltaClass(null, 'down')).toBe('nt');
+  });
+});
+
+describe('symmetry', () => {
+  it('≤ 0,5 cm é simétrico', () => {
+    expect(symmetry(33, 33)).toEqual({ text: 'simétrico', cls: 'dn' });
+    expect(symmetry(22, 22.5)).toEqual({ text: 'simétrico', cls: 'dn' });
+  });
+  it('entre 0,5 e 1,5 mostra o lado maior', () => {
+    expect(symmetry(25.5, 26.5)).toEqual({ text: 'E +1,0', cls: 'nt' });
+    expect(symmetry(50.5, 49.5)).toEqual({ text: 'D +1,0', cls: 'nt' });
+  });
+  it('acima de 1,5 pede conferência', () => {
+    expect(symmetry(26.0, 27.9)).toEqual({ text: 'E +1,9 · confira', cls: 'up' });
+  });
+  it('lado ausente → —', () => {
+    expect(symmetry(null, 30)).toEqual({ text: '—', cls: 'nt' });
+    expect(symmetry(30, undefined)).toEqual({ text: '—', cls: 'nt' });
+  });
+});
+
+describe('implausibleWaterChange', () => {
+  it('mais de 15 pontos entre avaliações é improvável', () => {
+    expect(implausibleWaterChange(27.1, 55.1)).toBe(true);
+    expect(implausibleWaterChange(55, 40)).toBe(false);
+    expect(implausibleWaterChange(55.1, 39.9)).toBe(true);
+  });
+  it('sem valor atual ou anterior não avisa', () => {
+    expect(implausibleWaterChange(null, 55)).toBe(false);
+    expect(implausibleWaterChange(27, undefined)).toBe(false);
+  });
+});

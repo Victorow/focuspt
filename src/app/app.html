@@ -2,104 +2,39 @@
 <app-dialog />
 
 @if (isLoginPage()) {
-  <!-- Clean background for Authentication Page -->
-  <main class="w-full min-h-screen bg-[#0A0A0B]">
+  <router-outlet />
+} @else {
+  <header class="nav">
+    <div class="navIn">
+      <a routerLink="/" class="brand"><span class="mk" aria-hidden="true"><i class="r"></i><i class="b"></i><i class="t1"></i><i class="t2"></i><i class="c"></i></span>FocusPT</a>
+      <a class="navItem" routerLink="/" routerLinkActive="navOn" [routerLinkActiveOptions]="{ exact: true }">Início</a>
+      <a class="navItem" routerLink="/alunos" routerLinkActive="navOn">Alunos</a>
+      <a class="navItem" routerLink="/agenda" routerLinkActive="navOn">Agenda</a>
+
+      <div class="navEnd">
+        <span class="k navName">{{ trainerName() }}</span>
+        <div class="navMenu">
+          <button type="button" class="navItem" [class.navOn]="menuOpen()" (click)="toggleMenu()"
+                  aria-haspopup="true" [attr.aria-expanded]="menuOpen()" aria-controls="conta-menu">Conta</button>
+          @if (menuOpen()) {
+            <div id="conta-menu" class="panel pop" role="group" aria-label="Conta">
+              <div class="k navName popName">{{ trainerName() }}</div>
+              <span class="lb">Tema</span>
+              <div class="seg" role="radiogroup" aria-label="Tema">
+                @for (m of themeModes; track m) {
+                  <button type="button" role="radio" [class.on]="theme.mode() === m"
+                          [attr.aria-checked]="theme.mode() === m" (click)="theme.set(m)">{{ themeLabel(m) }}</button>
+                }
+              </div>
+              <button type="button" class="btn" (click)="handleLogout()">Sair</button>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
     <router-outlet />
   </main>
-} @else {
-  <!-- Persistent Dashboard Navigation Layout Shell -->
-  <div class="min-h-screen bg-[#0A0A0B] text-slate-200 flex flex-col md:flex-row font-sans overflow-x-hidden">
-    
-    <!-- Sidebar Navigation -->
-    <aside class="w-full md:w-64 bg-[#141417] border-b md:border-b-0 md:border-r border-white/5 flex flex-col shrink-0">
-      <div class="p-5 flex flex-row md:flex-col items-center md:items-start justify-between md:justify-start">
-        <!-- Logo -->
-        <div class="flex items-center gap-3 md:mb-8">
-          <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
-            <mat-icon class="text-white !text-sm flex items-center justify-center">fitness_center</mat-icon>
-          </div>
-          <span class="font-extrabold tracking-tight text-lg text-white">FocusPT</span>
-        </div>
-
-        <!-- Desktop Navigation tabs -->
-        <nav class="hidden md:flex flex-col gap-1.5 w-full">
-          <a 
-            routerLink="/" 
-            [routerLinkActiveOptions]="{ exact: true }"
-            routerLinkActive="bg-blue-600/10 text-blue-400 border border-blue-600/20"
-            [class]="currentPath() === '/' ? '' : 'text-slate-400 hover:text-slate-200 border border-transparent'"
-            class="px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-xs font-bold transition-all"
-          >
-            <mat-icon class="!text-base">dashboard</mat-icon>
-            Dashboard
-          </a>
-          
-          <a 
-            routerLink="/alunos"
-            routerLinkActive="bg-blue-600/10 text-blue-400 border border-blue-600/20"
-            [class]="currentPath().startsWith('/alunos') ? '' : 'text-slate-400 hover:text-slate-200 border border-transparent'"
-            class="px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-xs font-bold transition-all"
-          >
-            <mat-icon class="!text-base">assignment_ind</mat-icon>
-            Alunos & Controle
-          </a>
-
-          <a 
-            routerLink="/agenda"
-            routerLinkActive="bg-blue-600/10 text-blue-400 border border-blue-600/20"
-            [class]="currentPath().startsWith('/agenda') ? '' : 'text-slate-400 hover:text-slate-200 border border-transparent'"
-            class="px-3.5 py-2.5 rounded-xl flex items-center gap-3 text-xs font-bold transition-all"
-          >
-            <mat-icon class="!text-base">calendar_month</mat-icon>
-            Agenda
-          </a>
-        </nav>
-        
-        <!-- Mobile Simple Dropdown layout buttons -->
-        <div class="flex md:hidden items-center gap-2">
-          <a routerLink="/" class="p-2 text-slate-400 hover:text-white" title="Dashboard">
-            <mat-icon>dashboard</mat-icon>
-          </a>
-          <a routerLink="/alunos" class="p-2 text-slate-400 hover:text-white" title="Alunos">
-            <mat-icon>assignment_ind</mat-icon>
-          </a>
-          <a routerLink="/agenda" class="p-2 text-slate-400 hover:text-white" title="Agenda">
-            <mat-icon>calendar_month</mat-icon>
-          </a>
-          <button (click)="handleLogout()" class="p-2 text-slate-500 hover:text-red-400" title="Sair">
-            <mat-icon>logout</mat-icon>
-          </button>
-        </div>
-      </div>
-
-      <!-- Desktop Sidebar Footer -->
-      <div class="hidden md:flex mt-auto p-5 border-t border-white/5 flex-col gap-4">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-md">
-            {{ trainerInitials() }}
-          </div>
-          <div class="truncate">
-            <p class="text-xs font-bold text-slate-200 truncate">{{ trainerName() }}</p>
-            <p class="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Personal Trainer</p>
-          </div>
-        </div>
-
-        <button 
-          (click)="handleLogout()"
-          class="w-full py-2 bg-[#1C1C21] hover:bg-red-500/10 hover:text-red-400 transition-colors border border-white/5 rounded-xl text-[11px] font-bold text-slate-450 flex items-center justify-center gap-2"
-        >
-          <mat-icon class="!text-xs h-4">logout</mat-icon>
-          Sair do Sistema
-        </button>
-      </div>
-    </aside>
-
-    <!-- Main Content Area -->
-    <main class="flex-1 flex flex-col min-h-0 bg-[#0A0A0B]">
-      <!-- Central display spacer and content portal -->
-      <div class="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto animate-fade-in max-w-7xl w-full mx-auto space-y-6">
-        <router-outlet />
-      </div>
-    </main>
-  </div>
 }
