@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FocusPT — Sistema de avaliação física para personal trainers</title>
+<meta name="description" content="Sistema de avaliação física para personal trainers: bioimpedância Omron, perímetros e 7 dobras numa ficha só, evolução comparada e relatório em PDF em um clique. Dados no Brasil, LGPD.">
+<link rel="canonical" href="https://SEU-DOMINIO/">
+<meta name="robots" content="index,follow">
+<meta property="og:type" content="website">
+<meta property="og:title" content="FocusPT — avaliação física que o aluno entende">
+<meta property="og:description" content="Omron, perímetros e 7 dobras numa ficha só. Relatório em PDF em um clique.">
+<meta property="og:url" content="https://SEU-DOMINIO/">
+<meta property="og:image" content="https://SEU-DOMINIO/og.png">
+<meta property="og:locale" content="pt_BR">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#1A1B1E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "FocusPT",
+  "applicationCategory": "HealthApplication",
+  "operatingSystem": "Web",
+  "description": "Sistema de avaliação física para personal trainers: bioimpedância Omron, perímetros e 7 dobras numa ficha só, evolução comparada e relatório em PDF.",
+  "url": "https://SEU-DOMINIO/",
+  "inLanguage": "pt-BR",
+  "offers": {
+    "@type": "Offer",
+    "price": "[A PREENCHER]",
+    "priceCurrency": "BRL",
+    "description": "[PLANO E PREÇO — definir antes de publicar]"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Funciona com a minha balança?",
+      "acceptedAnswer": { "@type": "Answer", "text": "O sistema é calibrado para a Omron HBF-514C (a mais usada por personais no Brasil): faixas de gordura e músculo seguem o manual do aparelho. Outras balanças de bioimpedância funcionam para registro; as faixas de referência são da Omron." }
+    },
+    {
+      "@type": "Question",
+      "name": "E se eu não usar adipômetro?",
+      "acceptedAnswer": { "@type": "Answer", "text": "As dobras são um dos três blocos. Dá para avaliar só com bioimpedância e perímetros; o relatório omite o que não foi medido." }
+    },
+    {
+      "@type": "Question",
+      "name": "Preciso instalar alguma coisa?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Não. Funciona no navegador do celular e do computador. Lance a avaliação no celular durante o atendimento e exporte o PDF de onde quiser." }
+    },
+    {
+      "@type": "Question",
+      "name": "Os dados dos meus alunos ficam onde?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Em servidor no Brasil, com acesso restrito à sua conta. Fotos ficam em área privada, abertas só por link temporário. O aluno assina o termo de consentimento LGPD na própria tela." }
+    },
+    {
+      "@type": "Question",
+      "name": "Quanto custa?",
+      "acceptedAnswer": { "@type": "Answer", "text": "[PLANO E PREÇO — definir antes de publicar]. Teste sem cartão." }
+    }
+  ]
+}
+</script>
+<!-- META PIXEL: colar aqui -->
+<style>
+*{box-sizing:border-box}
+:root{--bg:#F5F5F4;--sf:#FFFFFF;--sf2:#F0F0EF;--bd:#E2E2E0;--bd2:#CFCFCC;--tx:#1A1B1E;--tx2:#6B6C70;--ln:#2F62A8;--ok:#1F6E48;--bad:#A8402A;--pb:#1A1B1E;--pt:#FFFFFF;--okbg:#E4F1EA;--badbg:#F7E6E1;--ref:#E2E2E0;--refok:#BFD3EA;--hov:#F0F0EF;--focus:#2F62A8;--ph:#D9D9D6;color-scheme:light}
+.escuro,.hero{--bg:#1A1B1E;--sf:#202124;--sf2:#242529;--bd:#2A2B2F;--bd2:#3A3B40;--tx:#E6E6E3;--tx2:#8A8B90;--ln:#8FB4E8;--ok:#86C7A3;--bad:#E39A86;--pb:#E6E6E3;--pt:#1A1B1E;--okbg:#1F3A2C;--badbg:#44261F;--ref:#2E2F34;--refok:#3E5A7E;--hov:#242529;--focus:#8FB4E8;--ph:#2E2F34}
+html{scroll-behavior:smooth}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--tx);font-family:Geist,-apple-system,"Segoe UI",system-ui,sans-serif;font-size:13px;line-height:18px;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+a{color:var(--ln);text-decoration:none}a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 12px;border-radius:5px;font:inherit;font-weight:500;cursor:pointer;border:1px solid var(--bd2);background:var(--sf);color:var(--tx);text-decoration:none;white-space:nowrap}
+.btn:hover{background:var(--hov);text-decoration:none}
+.btnP{background:var(--pb);border-color:var(--pb);color:var(--pt)}.btnP:hover{opacity:.9;background:var(--pb)}
+.panel{background:var(--sf);border:1px solid var(--bd);border-radius:6px}
+.ph{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 14px;border-bottom:1px solid var(--bd);font-weight:500}
+.k{color:var(--tx2);font-size:12px;line-height:16px}
+.up{color:var(--bad)}.dn{color:var(--ok)}.nt{color:var(--tx2)}
+.tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:12px;border:1px solid var(--bd2);color:var(--tx);white-space:nowrap}
+.tagOk{border-color:transparent;background:var(--okbg);color:var(--ok)}
+.big{font-size:22px;line-height:26px;font-weight:500;letter-spacing:-.01em}
+.f{display:block;width:100%;min-height:40px;border:1px solid var(--bd2);border-radius:5px;padding:0 10px;font:inherit;color:var(--tx);background:var(--sf)}
+.lb{font-weight:500;font-size:12px;color:var(--tx2);display:block;margin-bottom:4px}
+.kpi{display:grid;gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:6px;overflow:hidden}
+.kpi>div{background:var(--sf);padding:12px 14px;min-width:0}
+.ph2{aspect-ratio:3/4;background:var(--ph);border-radius:3px}
+.nav{min-height:52px;border-bottom:1px solid var(--bd);background:var(--sf)}
+.navIn{max-width:1120px;margin:0 auto;padding:0 24px;min-height:52px;display:flex;align-items:center;gap:4px}
+.navItem{display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:5px;color:var(--tx2);font-weight:500;text-decoration:none}
+.navItem:hover{background:var(--hov);color:var(--tx);text-decoration:none}
+.mk{position:relative;display:inline-block;width:40px;height:40px;border-radius:10px;background:var(--mkbg,#1A1B1E);flex:none}
+.mk i{position:absolute;display:block}
+.mk .r{inset:22.5%;border:2.5px solid var(--mkfg,#E6E6E3);border-radius:50%}
+.mk .b{left:15%;right:15%;top:50%;height:3px;margin-top:-1.5px;background:var(--mkfg,#E6E6E3);border-radius:2px}
+.mk .t1,.mk .t2{top:50%;width:3px;height:9px;margin-top:-4.5px;background:var(--mkfg,#E6E6E3);border-radius:1px}
+.mk .t1{left:15%}.mk .t2{right:15%}
+.mk .c{left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:var(--mkbg,#1A1B1E);box-shadow:0 0 0 2.5px var(--mkfg,#E6E6E3)}
+.mkInv{--mkbg:#E6E6E3;--mkfg:#1A1B1E}
+.wm{font-weight:600;letter-spacing:-.02em}
+.stage{perspective:1400px;perspective-origin:50% 40%}
+.float{position:absolute;inset:0;transform-style:preserve-3d;animation:flt 7s ease-in-out infinite}
+@keyframes flt{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.card3{position:absolute;inset:0;transform:rotateX(8deg) rotateY(-16deg);transform-style:preserve-3d;transition:transform .35s ease-out;will-change:transform}
+.layer{position:absolute;transform-style:preserve-3d}
+.rowIn{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--bd);opacity:0;transform:translateY(6px);animation:rowIn .5s ease-out forwards}
+@keyframes rowIn{to{opacity:1;transform:none}}
+.rise{opacity:0;transform:translateY(18px);animation:rise .7s ease-out forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+.sm{font-size:12px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+.sec{padding:80px 0;border-top:1px solid var(--bd)}
+h2.t{margin:0 0 8px;font-size:28px;line-height:34px;font-weight:600;letter-spacing:-.015em;color:var(--tx)}
+.lead{font-size:16px;line-height:24px;color:var(--tx2);max-width:640px}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:16px}
+.cta{min-height:48px;padding:0 20px;font-size:14px}
+.num{font-size:12px;color:var(--tx2);font-weight:600}
+.hero{background:#1A1B1E;color:#E6E6E3;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;inset:-30%;background:radial-gradient(ellipse at 70% 40%,rgba(143,180,232,.12),transparent 55%);pointer-events:none}
+.grid3d{position:absolute;inset:0;background-image:linear-gradient(rgba(230,230,227,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(230,230,227,.05) 1px,transparent 1px);background-size:40px 40px;transform:perspective(900px) rotateX(62deg) translateY(28%) scale(1.8);transform-origin:50% 100%;-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.8),transparent 70%);mask-image:linear-gradient(to top,rgba(0,0,0,.8),transparent 70%);pointer-events:none}
+.heroG{position:relative;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:48px;align-items:center;padding-top:88px;padding-bottom:96px}
+.heroL{display:flex;flex-direction:column;gap:20px}
+h1{margin:0;font-size:44px;line-height:50px;font-weight:600;letter-spacing:-.02em}
+.card{padding:20px;display:flex;flex-direction:column;gap:8px}
+.lift{transition:transform .25s ease,box-shadow .25s ease}
+.lift:hover{transform:translateY(-4px);box-shadow:0 16px 36px rgba(0,0,0,.12)}
+.flip{perspective:1000px;min-height:150px}
+.flip .in{position:relative;width:100%;height:100%;min-height:150px;transform-style:preserve-3d;transition:transform .6s ease}
+.flip:hover .in,.flip:focus-within .in{transform:rotateY(180deg)}
+.flip .fc{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;padding:20px;display:flex;flex-direction:column;gap:6px}
+.flip .bk{transform:rotateY(180deg);background:var(--sf2)}
+.kv{display:flex;justify-content:space-between;border-bottom:1px solid var(--bd);padding:6px 0}.kv:last-child{border-bottom:0}
+details{border-top:1px solid var(--bd)}details:last-child{border-bottom:1px solid var(--bd)}
+summary{list-style:none;cursor:pointer;min-height:48px;display:flex;align-items:center;justify-content:space-between;font-weight:500;padding:4px 0}
+summary::-webkit-details-marker{display:none}summary::after{content:"+";color:var(--tx2)}details[open] summary::after{content:"–"}
+details p{margin:0 0 14px;color:var(--tx2);max-width:720px}
+input[type=range]{width:100%;accent-color:var(--pb)}
+.ticker{display:flex;gap:40px;overflow:hidden;white-space:nowrap;-webkit-mask-image:linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent);mask-image:linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent)}
+.ticker>div{display:flex;gap:40px;animation:tk 28s linear infinite}
+.ticker span{flex:none}
+@keyframes tk{to{transform:translateX(calc(-50% - 20px))}}
+blockquote{margin:0}
+@media (prefers-reduced-motion:reduce){.float,.rowIn,.rise{animation:none;opacity:1;transform:none}.card3{transition:none}.ticker>div{animation:none}.flip:hover .in{transform:none}.lift{transition:none}html{scroll-behavior:auto}}
+@media (max-width:860px){.heroG{grid-template-columns:1fr;padding-top:56px;padding-bottom:64px}.stage{transform:scale(.72);transform-origin:top center;height:360px !important}h1{font-size:32px;line-height:38px}.sec{padding:56px 0}.navMid{display:none}}
+@media (max-width:600px){.stage{transform:scale(.6);height:300px !important}.navIn{padding:0 16px}.wrap{padding:0 16px}}
+</style>
+</head>
+<body>
+<!-- GTM: colar aqui -->
+<header class="nav" style="position:sticky;top:0;z-index:5"><div class="navIn">
+<a href="/" style="display:flex;align-items:center;gap:10px;color:var(--tx)" aria-label="FocusPT, início"><span class="mk" style="width:28px;height:28px;border-radius:7px" aria-hidden="true"><i class="r"></i><i class="b"></i><i class="t1"></i><i class="t2"></i><i class="c"></i></span><span class="wm" style="font-size:15px">FocusPT</span></a>
+<nav class="navMid" style="margin-left:24px;display:flex;gap:4px" aria-label="Seções"><a class="navItem" href="#como">Como funciona</a><a class="navItem" href="#calc">Calculadora</a><a class="navItem" href="#faq">Perguntas</a></nav>
+<div style="margin-left:auto;display:flex;gap:6px;align-items:center"><a class="navItem" href="/app/login">Entrar</a><a class="btn btnP" href="https://wa.me/5512988443761?text=Quero%20ver%20o%20FocusPT">Falar no WhatsApp</a></div>
+</div></header>
+<main>
+<section class="hero"><div class="grid3d" aria-hidden="true"></div>
+<div class="wrap heroG">
+<div class="heroL">
+<span class="num rise" style="color:#8FB4E8;animation-delay:.05s">Para personal trainers que avaliam de verdade</span>
+<h1 class="rise" style="animation-delay:.15s">A avaliação física que o aluno entende. E que te faz fechar a renovação.</h1>
+<p class="lead rise" style="margin:0;color:#A3A4A8;animation-delay:.3s">Bioimpedância Omron, perímetros e 7 dobras de Jackson &amp; Pollock numa ficha só. Evolução comparada, faixas de referência e relatório em PDF com um clique.</p>
+<div class="rise" style="display:flex;gap:8px;flex-wrap:wrap;animation-delay:.45s"><a class="btn btnP cta" href="https://wa.me/5512988443761?text=Quero%20ver%20o%20FocusPT">Quero ver no meu atendimento</a><a class="btn cta" href="#como" style="background:transparent;color:#E6E6E3;border-color:#3A3B40">Como funciona</a></div>
+<div class="k rise" style="color:#8A8B90;animation-delay:.6s">Demonstração gratuita · dados hospedados no Brasil (LGPD) · sem cartão para testar</div>
+</div>
+<figure style="margin:0"><div class="stage" data-tilt style="width:520px;height:488px;position:relative;margin:0 auto;max-width:100%">
+<div class="float"><div class="card3">
+<div class="layer panel" style="left:0;top:40px;width:405px;transform:translateZ(0);box-shadow:0 30px 60px rgba(0,0,0,.35)"><div class="ph"><span>Marina C. R. · 03/10 vs 20/06</span><span class="k">105 dias</span></div><div style="padding:4px 14px"><div class="rowIn" style="animation-delay:0.30s"><span>Peso</span><span>49,2 kg <span class="nt sm">−0,1</span></span></div><div class="rowIn" style="animation-delay:0.46s"><span>Gordura corporal</span><span>23,7 % <span class="dn sm">−3,4</span></span></div><div class="rowIn" style="animation-delay:0.62s"><span>Músculo esquelético</span><span>31,0 % <span class="dn sm">+1,4</span></span></div><div class="rowIn" style="animation-delay:0.78s"><span>Massa magra</span><span>37,5 kg <span class="dn sm">+1,6</span></span></div><div class="rowIn" style="animation-delay:0.94s"><span>Cintura</span><span>64,0 cm <span class="dn sm">−0,5</span></span></div><div class="rowIn" style="animation-delay:1.10s"><span>Gordura visceral</span><span>3 <span class="dn sm">−1</span></span></div><div class="rowIn" style="animation-delay:1.26s"><span>Somatório 7 dobras</span><span>148 mm <span class="up sm">+14</span></span></div></div></div>
+<div class="layer kpi" style="left:187px;top:0;width:332px;grid-template-columns:1fr 1fr;transform:translateZ(70px);box-shadow:0 24px 50px rgba(0,0,0,.35)"><div><div class="k">Gordura</div><div class="big">23,7 %</div><div class="dn sm">−3,4 · normal</div></div><div><div class="k">Massa magra</div><div class="big">37,5 kg</div><div class="dn sm">+1,6</div></div></div>
+<div class="layer panel" style="left:270px;top:270px;width:239px;padding:10px;display:flex;gap:8px;transform:translateZ(130px);box-shadow:0 24px 50px rgba(0,0,0,.4)"><div class="ph2" style="flex:1"></div><div class="ph2" style="flex:1;background:var(--refok)"></div></div>
+<div class="layer" style="left:270px;top:458px;transform:translateZ(130px)" aria-hidden="true"><span class="tag" style="background:var(--sf)">21/06 → 05/10</span></div>
+</div></div></div><figcaption class="k" style="text-align:center;color:#8A8B90;margin-top:8px">Tela real do sistema · mova o mouse</figcaption></figure>
+</div>
+<div class="wrap" style="position:relative;padding-bottom:28px"><div class="ticker" style="color:#C9CACD"><div><span>Omron HBF-514C</span><span class="k">·</span><span>Jackson &amp; Pollock 7 dobras</span><span class="k">·</span><span>IMC · RCQ · % gordura</span><span class="k">·</span><span>Faixas por sexo e idade</span><span class="k">·</span><span>PDF em um clique</span><span class="k">·</span><span>Fotos antes e depois</span><span class="k">·</span><span>Agenda da semana</span><span class="k">·</span><span>LGPD assinado na tela</span><span class="k">·</span><span>Dados no Brasil</span><span class="k">·</span><span aria-hidden="true">Omron HBF-514C</span><span class="k" aria-hidden="true">·</span><span aria-hidden="true">Jackson &amp; Pollock 7 dobras</span><span class="k" aria-hidden="true">·</span><span aria-hidden="true">IMC · RCQ · % gordura</span><span class="k" aria-hidden="true">·</span><span aria-hidden="true">Faixas por sexo e idade</span><span class="k" aria-hidden="true">·</span><span aria-hidden="true">PDF em um clique</span><span class="k" aria-hidden="true">·</span><span aria-hidden="true">Fotos antes e depois</span><span class="k" aria-hidden="true">·</span><span aria-hidden="true">Agenda da semana</span><span class="k" aria-hidden="true">·</span><span aria-hidden="true">LGPD assinado na tela</span><span class="k" aria-hidden="true">·</span><span aria-hidden="true">Dados no Brasil</span><span class="k" aria-hidden="true">·</span></div></div></div>
+</section>
+
+<section class="sec"><div class="wrap">
+<h2 class="t">Três coisas que fazem o aluno sumir depois do 3º mês</h2>
+<p class="lead" style="margin:0 0 28px">Não é o treino. É o que ele não consegue ver.</p>
+<div class="g3">
+<div class="panel lift card"><span class="num">01</span><strong>Medida na planilha, resultado na cabeça do personal</strong><span class="nt">O aluno pergunta "e aí, melhorei?" e a resposta é um "sim, bastante". Nada para mostrar.</span><span class="dn">Com o FocusPT: cada medida ao lado da anterior, com variação e faixa de referência.</span></div>
+<div class="panel lift card"><span class="num">02</span><strong>Relatório que leva uma hora para montar</strong><span class="nt">Foto no celular, número no caderno, PDF no Word. Na terceira avaliação, ninguém faz mais.</span><span class="dn">Com o FocusPT: PDF pronto na hora, com fotos de antes e depois pareadas por sessão.</span></div>
+<div class="panel lift card"><span class="num">03</span><strong>Reavaliação que ninguém lembra de marcar</strong><span class="nt">Passam 4 meses. O aluno não vê progresso e acha que é culpa do treino.</span><span class="dn">Com o FocusPT: o painel avisa quem passou de 90 dias e quem tem gordura visceral alta.</span></div>
+</div></div></section>
+
+<section class="sec" id="como"><div class="wrap">
+<h2 class="t">Como funciona</h2>
+<p class="lead" style="margin:0 0 28px">Seis módulos, um cadastro por aluno, zero planilha. Vire os cartões.</p>
+<div class="g3">
+<div class="flip panel" tabindex="0"><div class="in"><div class="fc"><span class="num">Alunos</span><strong>Ficha e anamnese PAR-Q</strong><span class="nt">Histórico clínico com destaque automático para respostas de risco.</span><span class="k" style="margin-top:auto">Passe o mouse para ver na prática</span></div><div class="fc bk"><span class="num">Exemplo</span><div class="kv"><span>Dor articular</span><span class="up">Sim</span></div><div class="kv"><span>Problema cardíaco</span><span class="nt">Não</span></div><div class="kv"><span>Dor no peito</span><span class="nt">Não</span></div></div></div></div>
+<div class="flip panel" tabindex="0"><div class="in"><div class="fc"><span class="num">Avaliação</span><strong>Omron + perímetros + 7 dobras</strong><span class="nt">Lançamento em 3 passos, valor anterior ao lado de cada campo, cálculo de IMC, RCQ, % gordura e faixas Omron.</span><span class="k" style="margin-top:auto">Passe o mouse para ver na prática</span></div><div class="fc bk"><span class="num">Exemplo</span><span class="lb">Cintura (cm)</span><div class="f" style="display:flex;align-items:center">64,0</div><span class="k">Anterior: 64,5 · −0,5</span></div></div></div>
+<div class="flip panel" tabindex="0"><div class="in"><div class="fc"><span class="num">Relatório</span><strong>PDF em um clique</strong><span class="nt">Comparativo com a avaliação anterior, gráficos de evolução e fotos pareadas. Envie pelo WhatsApp.</span><span class="k" style="margin-top:auto">Passe o mouse para ver na prática</span></div><div class="fc bk"><span class="num">Exemplo</span><div class="kv"><span>Gordura corporal</span><span>23,7 % <span class="dn">−3,4</span></span></div><div class="kv"><span>Massa magra</span><span>37,5 kg <span class="dn">+1,6</span></span></div></div></div></div>
+<div class="flip panel" tabindex="0"><div class="in"><div class="fc"><span class="num">Agenda</span><strong>Semana e pendências</strong><span class="nt">Atendimentos do dia, reavaliações vencidas e termos LGPD pendentes num só painel.</span><span class="k" style="margin-top:auto">Passe o mouse para ver na prática</span></div><div class="fc bk"><span class="num">Exemplo</span><div class="kv"><span>Thiago B.</span><span class="up">108 dias sem avaliar</span></div><div class="kv"><span>09:00 Diego M.</span><span class="nt">Costas e bíceps</span></div></div></div></div>
+<div class="flip panel" tabindex="0"><div class="in"><div class="fc"><span class="num">LGPD</span><strong>Consentimento assinado na tela</strong><span class="nt">Termo lido e assinado pelo aluno no celular; fotos em área privada com link temporário.</span><span class="k" style="margin-top:auto">Passe o mouse para ver na prática</span></div><div class="fc bk"><span class="num">Exemplo</span><span class="tag tagOk">Assinado 21/06/2026 14:32</span><span class="k">Links de foto expiram em 1 hora.</span></div></div></div>
+<div class="flip panel" tabindex="0"><div class="in"><div class="fc"><span class="num">Fotos</span><strong>Antes e depois pareados</strong><span class="nt">Cada sessão de fotos fica ligada à avaliação mais próxima; comparação deslizante no app.</span><span class="k" style="margin-top:auto">Passe o mouse para ver na prática</span></div><div class="fc bk"><span class="num">Exemplo</span><div style="display:flex;gap:6px"><div class="ph2" style="flex:1"></div><div class="ph2" style="flex:1;background:var(--refok)"></div></div><span class="k">21/06 → 05/10</span></div></div></div>
+</div></div></section>
+
+<section class="sec" id="calc"><div class="wrap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:32px;align-items:start">
+<div><h2 class="t">Quanto tempo você gasta montando relatório?</h2><p class="lead" style="margin:0">Arraste os controles. É uma estimativa para dimensionar, não uma proposta comercial.</p></div>
+<div class="panel lift" style="padding:20px;display:flex;flex-direction:column;gap:18px" data-calc role="group" aria-label="Calculadora de horas">
+<div><label class="lb" for="r1">Avaliações por mês: <strong data-out="aval">20</strong></label><input id="r1" type="range" min="4" max="80" value="20" data-in="aval"></div>
+<div><label class="lb" for="r2">Minutos por relatório, hoje: <strong data-out="min">40</strong></label><input id="r2" type="range" min="10" max="120" step="5" value="40" data-in="min"></div>
+<div style="display:flex;gap:24px;border-top:1px solid var(--bd);padding-top:14px" aria-live="polite"><div><div class="k">Horas por mês</div><div class="big"><span data-out="horas">13</span> h</div></div><div><div class="k">Dias úteis por mês</div><div class="big" data-out="dias">1,7</div></div></div>
+<div class="k">Com o FocusPT o relatório sai em menos de 1 minuto.</div>
+</div></div></section>
+
+<section class="sec" aria-label="Depoimentos"><div class="wrap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:16px">
+<blockquote class="panel lift" style="padding:20px;display:flex;flex-direction:column;gap:10px"><p style="margin:0;font-size:15px">“[DEPOIMENTO DE CLIENTE — 1 a 2 frases com resultado concreto]”</p><footer class="k">[NOME], personal trainer em [CIDADE]</footer></blockquote>
+<blockquote class="panel lift" style="padding:20px;display:flex;flex-direction:column;gap:10px"><p style="margin:0;font-size:15px">“[DEPOIMENTO DE CLIENTE — 1 a 2 frases com resultado concreto]”</p><footer class="k">[NOME], personal trainer em [CIDADE]</footer></blockquote>
+<div class="panel lift" style="padding:20px;display:flex;flex-direction:column;gap:6px"><span class="num">Em números</span><div class="big">[N]</div><div class="nt">avaliações registradas por personais que usam o FocusPT</div><div class="k">(preencher com dado real antes de publicar)</div></div>
+</div></section>
+
+<section class="sec" id="faq"><div class="wrap" style="max-width:800px">
+<h2 class="t">Antes de você perguntar</h2>
+<details><summary>Funciona com a minha balança?</summary><p>O sistema é calibrado para a Omron HBF-514C: faixas de gordura e músculo seguem o manual do aparelho. Outras balanças de bioimpedância funcionam para registro; as faixas de referência são da Omron.</p></details>
+<details><summary>E se eu não usar adipômetro?</summary><p>As dobras são um dos três blocos. Dá para avaliar só com bioimpedância e perímetros; o relatório omite o que não foi medido.</p></details>
+<details><summary>Preciso instalar alguma coisa?</summary><p>Não. Funciona no navegador do celular e do computador. Lance a avaliação no celular durante o atendimento e exporte o PDF de onde quiser.</p></details>
+<details><summary>Os dados dos meus alunos ficam onde?</summary><p>Em servidor no Brasil, com acesso restrito à sua conta. Fotos ficam em área privada, abertas só por link temporário. O aluno assina o termo de consentimento LGPD na própria tela.</p></details>
+<details><summary>Quanto custa?</summary><p>[PLANO E PREÇO — definir antes de publicar]. Teste sem cartão.</p></details>
+</div></section>
+
+<section class="hero" style="border-top:1px solid #2A2B2F" aria-label="Chamada final"><div class="grid3d" aria-hidden="true"></div><div class="wrap" style="position:relative;padding:80px 24px;display:flex;flex-direction:column;align-items:flex-start;gap:14px">
+<h2 class="t" style="color:#E6E6E3">Quer ver com os seus alunos?</h2>
+<p class="lead" style="margin:0;color:#A3A4A8">Chame no WhatsApp. Mostramos o sistema em 20 minutos, com uma avaliação sua de exemplo.</p>
+<a class="btn cta" href="https://wa.me/5512988443761?text=Quero%20ver%20o%20FocusPT" style="background:#E6E6E3;color:#1A1B1E;border-color:#E6E6E3">Falar no WhatsApp · (12) 98844-3761</a>
+</div></section>
+</main>
+<footer style="border-top:1px solid var(--bd);padding:24px 0"><div class="wrap k" style="display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:center">
+<span style="display:flex;align-items:center;gap:8px"><span class="mk" style="width:20px;height:20px;border-radius:5px" aria-hidden="true"><i class="r"></i><i class="b"></i><i class="t1"></i><i class="t2"></i><i class="c"></i></span> © 2026 FocusPT · [RAZÃO SOCIAL] · CNPJ [00.000.000/0001-00]</span>
+<span><a href="#">Política de privacidade</a> · <a href="#">Termos de uso</a></span>
+</div></footer>
+<script>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Inclinação da pilha 3D com o mouse (repouso: rotateX(8) rotateY(-16)).
+  if (!reduce) document.querySelectorAll('[data-tilt]').forEach(function (st) {
+    var card = st.querySelector('.card3');
+    st.addEventListener('mousemove', function (e) {
+      var r = st.getBoundingClientRect();
+      var x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;
+      card.style.transform = 'rotateX(' + (8 - y * 10) + 'deg) rotateY(' + (-16 + x * 14) + 'deg)';
+    });
+    st.addEventListener('mouseleave', function () { card.style.transform = ''; });
+  });
+  // Calculadora de horas por mês.
+  var f = document.querySelector('[data-calc]');
+  if (f) {
+    var out = function (k) { return f.querySelector('[data-out="' + k + '"]'); };
+    var calc = function () {
+      var a = Number(f.querySelector('[data-in="aval"]').value), m = Number(f.querySelector('[data-in="min"]').value);
+      var horas = Math.round(a * m / 60);
+      out('aval').textContent = a; out('min').textContent = m; out('horas').textContent = horas;
+      out('dias').textContent = (horas / 8).toFixed(1).replace('.', ',');
+    };
+    f.addEventListener('input', calc); calc();
+  }
+})();
+</script>
+</body>
+</html>
