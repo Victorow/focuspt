@@ -34,3 +34,6 @@ yarn-error.log*
 
 # Supabase CLI local cache
 supabase/.temp/
+
+# credenciais locais dos testes E2E
+.env.e2e
