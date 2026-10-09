@@ -337,3 +337,29 @@ describe('calcAge', () => {
     expect(calcAge('1980-03-10', '2010-03-10')).toBe(30);
   });
 });
+
+// =============================================
+// Água corporal
+// =============================================
+import { calcWaterPercentage } from '../../supabase/functions/_shared/calculations';
+
+describe('calcWaterPercentage', () => {
+  it('hidratação da massa magra: (100 − gordura) × 0,732', () => {
+    expect(calcWaterPercentage(20)).toBe(58.6);
+    expect(calcWaterPercentage(30)).toBe(51.2);
+    expect(calcWaterPercentage(0)).toBe(73.2);
+  });
+
+  it('arredonda a 1 casa', () => {
+    expect(calcWaterPercentage(23.7)).toBe(55.9); // 76.3 × 0.732 = 55.8516
+    expect(calcWaterPercentage(45.5)).toBe(39.9); // 54.5 × 0.732 = 39.894
+  });
+
+  it('sempre fica entre 0 e 100 para gordura válida', () => {
+    for (const f of [0.1, 10, 50, 80]) {
+      const w = calcWaterPercentage(f);
+      expect(w).toBeGreaterThan(0);
+      expect(w).toBeLessThan(100);
+    }
+  });
+});

@@ -119,3 +119,8 @@ export function calcAge(birthDate: string, refDate?: string): number {
   if (rm < bm || (rm === bm && rd < bd)) age--;
   return age;
 }
+
+/** % de água corporal pela hidratação da massa magra: (100 − gordura%) × 0,732, 1 casa. */
+export function calcWaterPercentage(fatPct: number): number {
+  return Math.round((100 - fatPct) * 0.732 * 10) / 10;
+}

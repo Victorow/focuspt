@@ -55,7 +55,6 @@ export const ASSESSMENT_1 = {
   restingMetabolismKcal: '1185',
   bodyAge: '27',
   visceralFatLevel: '3',
-  waterPercentage: '55',
   neckCm: '30',
   shoulderCm: '93.5',
   chestCm: '81',

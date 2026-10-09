@@ -114,3 +114,9 @@ export function calcAge(birthDate: string, refDate?: string): number {
   if (rm < bm || (rm === bm && rd < bd)) age--;
   return age;
 }
+
+// % de água corporal estimada pela hidratação da massa magra (≈ 73,2 % da massa livre de gordura).
+// água% = (100 − gordura%) × 0,732 — é a fórmula usada pelas balanças de bioimpedância.
+export function calcWaterPercentage(fatPct: number): number {
+  return Math.round((100 - fatPct) * 0.732 * 10) / 10;
+}

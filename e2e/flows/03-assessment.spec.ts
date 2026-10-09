@@ -14,7 +14,6 @@ const FIELDS: { key: keyof Inputs; label: RegExp }[] = [
   { key: 'restingMetabolismKcal', label: /metabolismo/i },
   { key: 'bodyAge', label: /idade (corporal|biológica)/i },
   { key: 'visceralFatLevel', label: /visceral/i },
-  { key: 'waterPercentage', label: /água|agua/i },
   { key: 'neckCm', label: /pescoço|pescoco/i },
   { key: 'shoulderCm', label: /ombros?/i },
   { key: 'chestCm', label: /^t[óo]rax/i },

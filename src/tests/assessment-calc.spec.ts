@@ -56,3 +56,11 @@ describe('assessment-calc espelha calculations.ts', () => {
     expect(front.rcqThresholds('FEMALE')).toEqual([0.71, 0.77, 0.82]);
   });
 });
+
+describe('assessment-calc espelha calculations.ts — água corporal', () => {
+  it('calcWaterPercentage', () => {
+    for (const f of [0.1, 10, 23.7, 30, 45.5, 80]) {
+      expect(front.calcWaterPercentage(f)).toBe(back.calcWaterPercentage(f));
+    }
+  });
+});

@@ -248,3 +248,37 @@ describe('implausibleWaterChange', () => {
     expect(implausibleWaterChange(27, undefined)).toBe(false);
   });
 });
+
+// =============================================
+// trend / trendSymbol (seta de comparação ao digitar)
+// =============================================
+import { trend, trendSymbol } from '../app/assessment-utils';
+
+describe('trend', () => {
+  it('maior → up, menor → down, igual → same', () => {
+    expect(trend(71.4, 70)).toBe('up');
+    expect(trend(69, 70)).toBe('down');
+    expect(trend(70, 70)).toBe('same');
+  });
+
+  it('compara no arredondamento exibido', () => {
+    expect(trend(70.04, 70, 1)).toBe('same');
+    expect(trend(70.06, 70, 1)).toBe('up');
+    expect(trend(1500.4, 1500, 0)).toBe('same');
+  });
+
+  it('sem um dos lados → null', () => {
+    expect(trend(null, 70)).toBeNull();
+    expect(trend(70, undefined)).toBeNull();
+    expect(trend(NaN, 70)).toBeNull();
+  });
+});
+
+describe('trendSymbol', () => {
+  it('↑ ↓ = e vazio', () => {
+    expect(trendSymbol('up')).toBe('↑');
+    expect(trendSymbol('down')).toBe('↓');
+    expect(trendSymbol('same')).toBe('=');
+    expect(trendSymbol(null)).toBe('');
+  });
+});

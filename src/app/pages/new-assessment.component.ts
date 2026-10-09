@@ -6,9 +6,9 @@ import { DataService, Student, Assessment } from '../data';
 import { ToastService } from '../toast.service';
 import {
   shouldConvertCmToMm, cmToMm, fieldRangeHint, toOptionalBoolean,
-  parseDecimal, parsePositive, toInputText, formatNum, formatDelta, deltaClass, symmetry, implausibleWaterChange,
+  parseDecimal, parsePositive, toInputText, formatNum, formatDelta, deltaClass, symmetry, implausibleWaterChange, trend, trendSymbol,
 } from '../assessment-utils';
-import { calcAge, calcBmi, classifyBmi, classifyBodyFat, calcSkinfoldsSum7, calcJacksonPollock7, calcRcq, classifyRcq } from '../assessment-calc';
+import { calcAge, calcBmi, classifyBmi, classifyBodyFat, calcSkinfoldsSum7, calcJacksonPollock7, calcRcq, classifyRcq, calcWaterPercentage } from '../assessment-calc';
 import { todayYmd, daysBetween, formatBr } from '../date-utils';
 
 type Group = 'bioimpedance' | 'circumferences' | 'skinfolds';
@@ -43,8 +43,8 @@ const OMRON_FIELDS: FieldDef[] = [
   { group: 'bioimpedance', ctrl: 'restingMetabolismKcal', label: 'Metabolismo basal', unit: 'kcal', dica: 'Valor inteiro, em kcal.', step: 1, prev: a => a.bioimpedancias?.resting_metabolism_kcal },
   { group: 'bioimpedance', ctrl: 'bodyAge', label: 'Idade corporal', unit: 'anos', dica: 'Entre 10 e 100.', step: 1, prev: a => a.bioimpedancias?.body_age },
   { group: 'bioimpedance', ctrl: 'visceralFatLevel', label: 'Gordura visceral', unit: 'nível', dica: 'Escala Omron de 1 a 30.', step: 1, prev: a => a.bioimpedancias?.visceral_fat_level },
-  { group: 'bioimpedance', ctrl: 'waterPercentage', label: 'Água corporal', unit: '%', dica: 'Se a balança mostrar. Pode deixar em branco.', optional: true, step: 1, prev: a => a.bioimpedancias?.water_percentage },
 ];
+// Água corporal não é digitada: é calculada a partir da gordura (ver calcWaterPercentage).
 
 const TRUNK_FIELDS: FieldDef[] = [
   { group: 'circumferences', ctrl: 'neckCm', label: 'Pescoço', unit: 'cm', dica: 'Abaixo da cartilagem tireoide.', step: 2, prev: a => a.circunferencias?.neck_cm },
@@ -143,7 +143,7 @@ function decimal(opts: { required?: boolean; min?: number; max?: number }): Vali
               </div>
               <div class="panel prevBox">
                 <span class="nt">{{ previous() ? 'Anterior em ' + formatBr(previous()!.date) : 'Sem avaliação anterior' }}</span>
-                <span>{{ prevOf(f) }} <span [class]="fieldDeltaCls(f)">{{ fieldDelta(f) }}</span></span>
+                <span>{{ prevOf(f) }} <span [class]="fieldDeltaCls(f)" [attr.aria-label]="fieldArrowLabel(f)">{{ fieldArrow(f) }} {{ fieldDelta(f) }}</span></span>
               </div>
               <div class="mobFoot">
                 <span class="k center">Teclado numérico abre sozinho. Vírgula ou ponto, tanto faz.</span>
@@ -210,6 +210,11 @@ function decimal(opts: { required?: boolean; min?: number; max?: number }): Vali
                 @for (f of omronFields; track f.ctrl) {
                   <ng-container *ngTemplateOutlet="numTpl; context: { f: f }"></ng-container>
                 }
+                <div>
+                  <label class="lb" for="f-water">Água corporal (%) <span class="k">calculada</span></label>
+                  <input id="f-water" class="f calc" type="text" readonly tabindex="-1" [value]="formatNum(preview()?.water, 1)" />
+                  <div class="k prev">Anterior: {{ formatNum(prevWater(), 1) }} <span [class]="preview()?.waterDeltaCls ?? 'nt'" [attr.aria-label]="arrowLabel(preview()?.waterTrend ?? null)">{{ preview()?.waterArrow }} {{ preview()?.waterDelta !== null ? formatDelta(preview()?.waterDelta, 1) : '' }}</span></div>
+                </div>
               </div>
               <div class="body pt0"><label class="chk"><input type="checkbox" formControlName="isAthlete" />Modo atleta ligado na balança</label></div>
             </section>
@@ -237,8 +242,14 @@ function decimal(opts: { required?: boolean; min?: number; max?: number }): Vali
                   @for (r of limbRows; track r.right) {
                     <tr>
                       <td>{{ r.label }} @if (r.optional) { <span class="k">opcional</span> }</td>
-                      <td><input class="f side" type="text" inputmode="decimal" [formControlName]="r.right" [attr.aria-label]="r.label + ' direito'" [class.bad]="isBad('circumferences', r.right)" /></td>
-                      <td><input class="f side" type="text" inputmode="decimal" [formControlName]="r.left" [attr.aria-label]="r.label + ' esquerdo'" [class.bad]="isBad('circumferences', r.left)" /></td>
+                      <td>
+                        <input class="f side" type="text" inputmode="decimal" [formControlName]="r.right" [attr.aria-label]="r.label + ' direito'" [class.bad]="isBad('circumferences', r.right)" />
+                        <div class="k prev">Ant. {{ prevOf(limbField(r.right)) }} <span [class]="fieldDeltaCls(limbField(r.right))">{{ fieldArrow(limbField(r.right)) }} {{ fieldDelta(limbField(r.right)) }}</span></div>
+                      </td>
+                      <td>
+                        <input class="f side" type="text" inputmode="decimal" [formControlName]="r.left" [attr.aria-label]="r.label + ' esquerdo'" [class.bad]="isBad('circumferences', r.left)" />
+                        <div class="k prev">Ant. {{ prevOf(limbField(r.left)) }} <span [class]="fieldDeltaCls(limbField(r.left))">{{ fieldArrow(limbField(r.left)) }} {{ fieldDelta(limbField(r.left)) }}</span></div>
+                      </td>
                       <td [class]="limbSym(r).cls">{{ limbSym(r).text }}</td>
                     </tr>
                   }
@@ -293,7 +304,7 @@ function decimal(opts: { required?: boolean; min?: number; max?: number }): Vali
             <label class="lb" [for]="'f-' + f.ctrl">{{ f.label }} ({{ f.unit }}) @if (f.optional) { <span class="k">opcional</span> }</label>
             <input [id]="'f-' + f.ctrl" class="f" type="text" inputmode="decimal" autocomplete="off" [formControl]="ctrl(f.group, f.ctrl)"
                    [class.bad]="isBad(f.group, f.ctrl)" (blur)="f.group === 'skinfolds' ? maybeConvertSkinfold(f.ctrl) : null" />
-            <div class="k prev">Anterior: {{ prevOf(f) }}</div>
+            <div class="k prev">Anterior: {{ prevOf(f) }} <span [class]="fieldDeltaCls(f)" [attr.aria-label]="fieldArrowLabel(f)">{{ fieldArrow(f) }} {{ fieldDelta(f) }}</span></div>
           </div>
         </ng-template>
 
@@ -321,6 +332,12 @@ function decimal(opts: { required?: boolean; min?: number; max?: number }): Vali
               <div><div class="k">Somatório 7 dobras</div><div class="big">{{ formatNum(p.sum7, 0) }} <span class="k">mm</span></div><div class="k">{{ p.jp7 !== null ? formatNum(p.jp7, 1) + ' % por dobras' : 'faltam dobras' }}</div></div>
               <div><div class="k">RCQ</div><div class="big">{{ formatNum(p.rcq, 2) }}</div><div class="k">{{ p.rcqDetail }}</div></div>
             </section>
+            <section class="panel"><div class="body waterRow">
+              <span class="k">Água corporal (calculada)</span>
+              <span class="strong">{{ formatNum(p.water, 1) }} <span class="k">%</span></span>
+              <span [class]="p.waterDeltaCls" [attr.aria-label]="arrowLabel(p.waterTrend)">{{ p.waterArrow }}{{ p.waterDelta !== null ? ' ' + formatDelta(p.waterDelta, 1) : '' }}</span>
+              <span class="nt">(100 − gordura) × 0,732</span>
+            </div></section>
             @for (w of p.warnings; track w.title) {
               <section class="panel warn"><div class="body"><span class="up strong">{{ w.title }}</span> <span class="nt">{{ w.detail }}</span></div></section>
             }
@@ -382,6 +399,9 @@ function decimal(opts: { required?: boolean; min?: number; max?: number }): Vali
     .body { padding: 12px 14px; }
     .pt0 { padding-top: 0; }
     .prev { margin-top: 4px; }
+    .prev .up, .prev .dn { font-weight: 600; }
+    .calc { background: var(--ph); color: var(--tx2); }
+    .waterRow { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
     .side { width: 110px; }
     .tw { overflow-x: auto; }
     .bad { border-color: var(--bad); }
@@ -481,7 +501,6 @@ export class NewAssessmentComponent implements OnInit {
       restingMetabolismKcal: ['', decimal({ required: true, min: 1 })],
       bodyAge: ['', decimal({ required: true, min: 10, max: 100 })],
       visceralFatLevel: ['', decimal({ required: true, min: 1, max: 30 })],
-      waterPercentage: ['', decimal({ min: 0, max: 100 })],
     }),
     circumferences: this.fb.group({
       neckCm: ['', decimal({ required: true, min: 0.1 })],
@@ -523,7 +542,7 @@ export class NewAssessmentComponent implements OnInit {
     { key: '', stepName: 'geral', fields: { date: 'Data da medição' } },
     { key: 'bioimpedance', stepName: 'balança', fields: {
       weightKg: 'Peso', bodyFatPercentage: 'Gordura corporal', skeletalMusclePercentage: 'Músculo esquelético',
-      restingMetabolismKcal: 'Metabolismo basal', bodyAge: 'Idade corporal', visceralFatLevel: 'Gordura visceral', waterPercentage: 'Água corporal',
+      restingMetabolismKcal: 'Metabolismo basal', bodyAge: 'Idade corporal', visceralFatLevel: 'Gordura visceral',
     } },
     { key: 'circumferences', stepName: 'perímetros', fields: {
       neckCm: 'Pescoço', shoulderCm: 'Ombros', chestCm: 'Tórax', waistCm: 'Cintura', abdomenCm: 'Abdômen', hipCm: 'Quadril', bustCm: 'Busto',
@@ -594,8 +613,10 @@ export class NewAssessmentComponent implements OnInit {
     const rcq = waist && hip ? calcRcq(waist, hip) : null;
 
     const warnings: { title: string; detail: string }[] = [];
-    const water = parseDecimal(b.waterPercentage);
+    const water = fat !== null ? calcWaterPercentage(fat) : null;
     const prevWater = prev?.bioimpedancias?.water_percentage ?? null;
+    const waterDelta = water !== null && prevWater !== null ? Math.round((water - prevWater) * 10) / 10 : null;
+    const waterTrend = trend(water, prevWater, 1);
     if (implausibleWaterChange(water, prevWater)) {
       const days = prev ? daysBetween(prev.date, v.date || todayYmd()) : null;
       const verb = (water as number) < (prevWater as number) ? 'caiu' : 'subiu';
@@ -617,6 +638,7 @@ export class NewAssessmentComponent implements OnInit {
       fatDelta, fatDeltaCls: deltaClass(fatDelta, 'down'),
       sum7, jp7,
       rcq, rcqDetail: rcq !== null ? `${formatNum(waist)} ÷ ${formatNum(hip)} · ${classifyRcq(std.gender, rcq)}` : '—',
+      water, waterDelta, waterTrend, waterArrow: trendSymbol(waterTrend), waterDeltaCls: deltaClass(waterDelta, 'neutral'),
       warnings,
     };
   });
@@ -688,10 +710,24 @@ export class NewAssessmentComponent implements OnInit {
     return !!c && c.invalid && (c.touched || c.dirty);
   }
 
+  /** Casas decimais em que o campo é exibido e comparado. */
+  private digitsOf(f: FieldDef): number {
+    return f.unit === 'kcal' || f.unit === 'anos' || f.unit === 'nível' ? 0 : 1;
+  }
+
+  /** FieldDef de um lado da tabela de membros (mesma definição usada no modo Medir). */
+  limbField(ctrl: string): FieldDef {
+    return this.fields.find(f => f.ctrl === ctrl) as FieldDef;
+  }
+
+  prevWater(): number | null {
+    return this.previous()?.bioimpedancias?.water_percentage ?? null;
+  }
+
   prevOf(f: FieldDef): string {
     const prev = this.previous();
     const v = prev ? f.prev(prev) : null;
-    return formatNum(v ?? null, f.unit === 'kcal' || f.unit === 'anos' || f.unit === 'nível' ? 0 : 1);
+    return formatNum(v ?? null, this.digitsOf(f));
   }
 
   fieldDelta(f: FieldDef): string {
@@ -699,7 +735,31 @@ export class NewAssessmentComponent implements OnInit {
     const pv = prev ? f.prev(prev) : null;
     const cur = parseDecimal(this.fv()[f.group]?.[f.ctrl]);
     if (pv === null || pv === undefined || cur === null) return '';
-    return formatDelta(cur - pv, f.unit === 'kcal' || f.unit === 'anos' || f.unit === 'nível' ? 0 : 1);
+    return formatDelta(cur - pv, this.digitsOf(f));
+  }
+
+  /** ↑ maior que o anterior, ↓ menor, = igual; vazio sem valor ou sem anterior. */
+  fieldArrow(f: FieldDef): string {
+    const prev = this.previous();
+    const pv = prev ? f.prev(prev) : null;
+    const cur = parseDecimal(this.fv()[f.group]?.[f.ctrl]);
+    return trendSymbol(trend(cur, pv, this.digitsOf(f)));
+  }
+
+  fieldArrowLabel(f: FieldDef): string | null {
+    const prev = this.previous();
+    const pv = prev ? f.prev(prev) : null;
+    const cur = parseDecimal(this.fv()[f.group]?.[f.ctrl]);
+    return this.arrowLabel(trend(cur, pv, this.digitsOf(f)));
+  }
+
+  arrowLabel(t: 'up' | 'down' | 'same' | null): string | null {
+    switch (t) {
+      case 'up': return 'maior que a avaliação anterior';
+      case 'down': return 'menor que a avaliação anterior';
+      case 'same': return 'igual à avaliação anterior';
+      default: return null;
+    }
   }
 
   fieldDeltaCls(f: FieldDef): string {
@@ -736,7 +796,7 @@ export class NewAssessmentComponent implements OnInit {
 
   stepSub(n: number): string {
     switch (n) {
-      case 1: return '7 campos';
+      case 1: return '6 campos + água calculada';
       case 2: return '13 campos';
       case 3: return '7 + 2 opcionais';
       default: { const w = this.preview()?.warnings.length ?? 0; return w === 1 ? '1 aviso' : `${w} avisos`; }
@@ -842,7 +902,6 @@ export class NewAssessmentComponent implements OnInit {
         isAthlete: b?.is_athlete ?? false,
         weightKg: t(b?.weight_kg), bodyFatPercentage: t(b?.body_fat_percentage), skeletalMusclePercentage: t(b?.skeletal_muscle_percentage),
         restingMetabolismKcal: t(b?.resting_metabolism_kcal), bodyAge: t(b?.body_age), visceralFatLevel: t(b?.visceral_fat_level),
-        waterPercentage: t(b?.water_percentage),
       },
       circumferences: {
         neckCm: t(c?.neck_cm), shoulderCm: t(c?.shoulder_cm), chestCm: t(c?.chest_cm), waistCm: t(c?.waist_cm), abdomenCm: t(c?.abdomen_cm), hipCm: t(c?.hip_cm), bustCm: t(c?.bust_cm),
@@ -885,7 +944,8 @@ export class NewAssessmentComponent implements OnInit {
     const bioimpedance = {
       weight_kg: num(b.weightKg), body_fat_percentage: num(b.bodyFatPercentage), skeletal_muscle_percentage: num(b.skeletalMusclePercentage),
       resting_metabolism_kcal: num(b.restingMetabolismKcal), body_age: num(b.bodyAge), visceral_fat_level: num(b.visceralFatLevel),
-      water_percentage: opt(b.waterPercentage), is_athlete: !!b.isAthlete,
+      // water_percentage é calculado na Edge Function a partir da gordura.
+      is_athlete: !!b.isAthlete,
     };
     const circumferences = {
       neck_cm: num(c.neckCm), shoulder_cm: num(c.shoulderCm), chest_cm: num(c.chestCm), waist_cm: num(c.waistCm), abdomen_cm: num(c.abdomenCm), hip_cm: num(c.hipCm),

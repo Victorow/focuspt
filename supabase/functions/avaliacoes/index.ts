@@ -2,7 +2,7 @@ import { handleCors, jsonResponse, errorResponse, handleError } from '../_shared
 import { getAuthUser } from '../_shared/supabase.ts';
 import {
   calcBmi, classifyBmi, classifyBodyFat, classifyVisceral,
-  calcJacksonPollock7, calcSkinfoldsSum7, calcRcq, calcAge,
+  calcJacksonPollock7, calcSkinfoldsSum7, calcRcq, calcAge, calcWaterPercentage,
 } from '../_shared/calculations.ts';
 import { isIsoDate, isUuid } from '../_shared/validation.ts';
 
@@ -87,7 +87,8 @@ function buildPayloads(aluno: any, body: any) {
       resting_metabolism_kcal: bioimpedance.resting_metabolism_kcal,
       body_age: bioimpedance.body_age,
       visceral_fat_level: bioimpedance.visceral_fat_level,
-      water_percentage: bioimpedance.water_percentage ?? null,
+      // Água corporal sempre calculada pela hidratação da massa magra (a HBF-514C não mostra água).
+      water_percentage: calcWaterPercentage(fatPct),
       fat_mass_kg: fatMassKg,
       lean_mass_kg: leanMassKg,
     },

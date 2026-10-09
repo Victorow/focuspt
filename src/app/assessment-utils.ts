@@ -137,3 +137,28 @@ export function implausibleWaterChange(current: number | null | undefined, previ
   if (current === null || current === undefined || previous === null || previous === undefined) return false;
   return Math.abs(current - previous) > WATER_CHANGE_LIMIT;
 }
+
+export type Trend = 'up' | 'down' | 'same';
+
+/**
+ * Direção do valor digitado em relação ao anterior, comparando no arredondamento em que o campo é exibido.
+ * null quando falta um dos dois lados.
+ */
+export function trend(current: number | null | undefined, previous: number | null | undefined, digits = 1): Trend | null {
+  if (current === null || current === undefined || previous === null || previous === undefined) return null;
+  if (!Number.isFinite(current) || !Number.isFinite(previous)) return null;
+  const c = Number(current.toFixed(digits)), p = Number(previous.toFixed(digits));
+  if (c > p) return 'up';
+  if (c < p) return 'down';
+  return 'same';
+}
+
+/** ↑ maior, ↓ menor, = igual. null → ''. */
+export function trendSymbol(t: Trend | null): string {
+  switch (t) {
+    case 'up': return '↑';
+    case 'down': return '↓';
+    case 'same': return '=';
+    default: return '';
+  }
+}

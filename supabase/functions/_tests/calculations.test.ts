@@ -274,3 +274,14 @@ Deno.test('calcAge - avaliação retroativa usa a idade na data da avaliação',
   assertEquals(calcAge('1980-03-10', '2010-03-09'), 29);
   assertEquals(calcAge('1980-03-10', '2010-03-10'), 30);
 });
+
+// =============================================
+// Água corporal
+// =============================================
+import { calcWaterPercentage } from '../_shared/calculations.ts';
+
+Deno.test('calcWaterPercentage - (100 − gordura) × 0,732, 1 casa', () => {
+  assertEquals(calcWaterPercentage(20), 58.6);
+  assertEquals(calcWaterPercentage(23.7), 55.9);
+  assertEquals(calcWaterPercentage(45.5), 39.9);
+});
