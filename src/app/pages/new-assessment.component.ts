@@ -133,12 +133,12 @@ function decimal(opts: { required?: boolean; min?: number; max?: number }): Vali
                 }
               </div>
               <div>
-                <label for="mob-v" class="mobLb">{{ f.label }} @if (f.optional) { <span class="k">opcional</span> }</label>
+                <label for="mob-v" class="mobLb" [class.req]="!f.optional">{{ f.label }} @if (f.optional) { <span class="k">opcional</span> }</label>
                 <div class="k">{{ f.dica }}</div>
               </div>
               <div class="mobIn">
                 <input id="mob-v" class="valor" type="text" inputmode="decimal" autocomplete="off"
-                       [formControl]="ctrl(f.group, f.ctrl)" (blur)="f.group === 'skinfolds' ? maybeConvertSkinfold(f.ctrl) : null" />
+                       [attr.aria-required]="f.optional ? null : 'true'" [formControl]="ctrl(f.group, f.ctrl)" (blur)="f.group === 'skinfolds' ? maybeConvertSkinfold(f.ctrl) : null" />
                 <span class="k unit">{{ f.unit }}</span>
               </div>
               <div class="panel prevBox">
@@ -155,8 +155,8 @@ function decimal(opts: { required?: boolean; min?: number; max?: number }): Vali
             } @else {
               <div class="stack">
                 <div>
-                  <label class="lb" for="data-m">Data da medição</label>
-                  <input id="data-m" class="f" type="date" formControlName="date" />
+                  <label class="lb req" for="data-m">Data da medição</label>
+                  <input id="data-m" class="f" type="date" formControlName="date" aria-required="true" />
                 </div>
                 <ng-container *ngTemplateOutlet="reviewTpl"></ng-container>
                 <div class="panel" formGroupName="bioimpedance">
@@ -195,10 +195,10 @@ function decimal(opts: { required?: boolean; min?: number; max?: number }): Vali
 
           <div class="titleRow">
             <h1 class="big">{{ isEditMode() ? 'Editar avaliação' : 'Nova avaliação' }} · {{ std.name }}</h1>
-            <span class="k">{{ std.gender === 'FEMALE' ? 'Feminino' : 'Masculino' }} · {{ ageAtDate() }} anos na data · {{ std.height_cm }} cm</span>
+            <span class="k">{{ std.gender === 'FEMALE' ? 'Feminino' : 'Masculino' }} · {{ ageAtDate() }} anos na data · {{ std.height_cm }} cm · <span class="req"></span> obrigatório</span>
             <div class="dateBox">
-              <label for="data" class="k">Data da medição</label>
-              <input id="data" class="f" type="date" formControlName="date" [class.bad]="assessmentForm.get('date')?.invalid && assessmentForm.get('date')?.touched" />
+              <label for="data" class="k req">Data da medição</label>
+              <input id="data" class="f" type="date" formControlName="date" aria-required="true" [class.bad]="assessmentForm.get('date')?.invalid && assessmentForm.get('date')?.touched" />
             </div>
           </div>
 
@@ -234,14 +234,14 @@ function decimal(opts: { required?: boolean; min?: number; max?: number }): Vali
               </div>
             </section>
             <section class="panel" formGroupName="circumferences">
-              <div class="ph"><span>Membros · cm</span><span class="k">preencha ao menos um lado completo</span></div>
+              <div class="ph"><span>Membros · cm</span><span class="k">linhas com <span class="req"></span>: preencha ao menos um lado completo</span></div>
               <div class="tw">
               <table>
                 <thead><tr><th>Medida</th><th>Direito</th><th>Esquerdo</th><th>Simetria</th></tr></thead>
                 <tbody>
                   @for (r of limbRows; track r.right) {
                     <tr>
-                      <td>{{ r.label }} @if (r.optional) { <span class="k">opcional</span> }</td>
+                      <td><span [class.req]="!r.optional">{{ r.label }}</span> @if (r.optional) { <span class="k">opcional</span> }</td>
                       <td>
                         <input class="f side" type="text" inputmode="decimal" [formControlName]="r.right" [attr.aria-label]="r.label + ' direito'" [class.bad]="isBad('circumferences', r.right)" />
                         <div class="k prev">Ant. {{ prevOf(limbField(r.right)) }} <span [class]="fieldDeltaCls(limbField(r.right))">{{ fieldArrow(limbField(r.right)) }} {{ fieldDelta(limbField(r.right)) }}</span></div>
@@ -301,8 +301,8 @@ function decimal(opts: { required?: boolean; min?: number; max?: number }): Vali
         <!-- Campo numérico com "Anterior" -->
         <ng-template #numTpl let-f="f">
           <div>
-            <label class="lb" [for]="'f-' + f.ctrl">{{ f.label }} ({{ f.unit }}) @if (f.optional) { <span class="k">opcional</span> }</label>
-            <input [id]="'f-' + f.ctrl" class="f" type="text" inputmode="decimal" autocomplete="off" [formControl]="ctrl(f.group, f.ctrl)"
+            <label class="lb" [class.req]="!f.optional" [for]="'f-' + f.ctrl">{{ f.label }} ({{ f.unit }}) @if (f.optional) { <span class="k">opcional</span> }</label>
+            <input [id]="'f-' + f.ctrl" class="f" type="text" inputmode="decimal" autocomplete="off" [attr.aria-required]="f.optional ? null : 'true'" [formControl]="ctrl(f.group, f.ctrl)"
                    [class.bad]="isBad(f.group, f.ctrl)" (blur)="f.group === 'skinfolds' ? maybeConvertSkinfold(f.ctrl) : null" />
             <div class="k prev">Anterior: {{ prevOf(f) }} <span [class]="fieldDeltaCls(f)" [attr.aria-label]="fieldArrowLabel(f)">{{ fieldArrow(f) }} {{ fieldDelta(f) }}</span></div>
           </div>

@@ -149,6 +149,8 @@ Há dois comentários-âncora para scripts de marketing: `<!-- META PIXEL: colar
 
 ### 3.0 Shell, navegação e componentes globais
 
+**Campos obrigatórios (todos os formulários, desde 09/10/2026):** o rótulo recebe a classe `req` (`src/styles.css`, `.req::after` = " *" em vermelho) e o campo `aria-required="true"`; o cabeçalho do formulário traz a legenda "* obrigatório" e os demais campos são marcados "opcional". Vale para login (e-mail, senha), aluno (nome, nascimento, sexo, altura; anamnese, objetivo e WhatsApp opcionais), avaliação (data da medição, todos os campos não marcados "opcional" na balança, tronco e dobras; na tabela de membros, as linhas com * exigem ao menos um lado completo; no modo Medir do celular o rótulo grande também leva o *) e agenda (aluno, data, hora; foco opcional).
+
 **Rotas** (`src/app/app.routes.ts`). Em produção todas vivem sob **`/app/`** (`baseHref`); abaixo estão os caminhos internos do Angular.
 
 | Rota | Componente | Arquivo |

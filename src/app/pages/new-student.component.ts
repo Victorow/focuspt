@@ -23,49 +23,49 @@ import { ToastService } from '../toast.service';
 
       <form [formGroup]="studentForm" (ngSubmit)="onSubmit()" novalidate class="stack">
         <section class="panel">
-          <div class="ph"><span>Dados pessoais</span><span class="k">sexo, idade e altura entram nos cálculos</span></div>
+          <div class="ph"><span>Dados pessoais</span><span class="k">sexo, idade e altura entram nos cálculos · <span class="req"></span> obrigatório</span></div>
           <div class="body grid2">
             <div class="full">
-              <label class="lb" for="nome">Nome completo</label>
-              <input id="nome" class="f" type="text" formControlName="name" autocomplete="name" />
+              <label class="lb req" for="nome">Nome completo</label>
+              <input id="nome" class="f" type="text" formControlName="name" autocomplete="name" aria-required="true" />
               @if (invalid('name')) {
                 <div class="k up">Informe o nome completo (mínimo 2 letras).</div>
               }
             </div>
             <div>
-              <label class="lb" for="nasc">Data de nascimento</label>
-              <input id="nasc" class="f" type="date" formControlName="birthDate" />
+              <label class="lb req" for="nasc">Data de nascimento</label>
+              <input id="nasc" class="f" type="date" formControlName="birthDate" aria-required="true" />
               @if (invalid('birthDate')) {
                 <div class="k up">Informe a data de nascimento.</div>
               }
             </div>
             <div>
-              <span class="lb" id="sx">Sexo biológico</span>
+              <span class="lb req" id="sx">Sexo biológico</span>
               <div class="seg" role="radiogroup" aria-labelledby="sx">
                 <label><input class="sr" type="radio" formControlName="gender" value="FEMALE" />Feminino</label>
                 <label><input class="sr" type="radio" formControlName="gender" value="MALE" />Masculino</label>
               </div>
             </div>
             <div>
-              <label class="lb" for="alt">Altura (cm)</label>
-              <input id="alt" class="f" type="number" inputmode="decimal" formControlName="heightCm" min="50" max="250" />
+              <label class="lb req" for="alt">Altura (cm)</label>
+              <input id="alt" class="f" type="number" inputmode="decimal" formControlName="heightCm" min="50" max="250" aria-required="true" />
               @if (invalid('heightCm')) {
                 <div class="k up">Altura entre 50 e 250 cm.</div>
               }
             </div>
             <div>
-              <label class="lb" for="obj">Objetivo</label>
+              <label class="lb" for="obj">Objetivo <span class="k">opcional</span></label>
               <input id="obj" class="f" type="text" formControlName="goal" placeholder="Ex.: hipertrofia, redução de gordura" />
             </div>
             <div>
-              <label class="lb" for="tel">WhatsApp</label>
+              <label class="lb" for="tel">WhatsApp <span class="k">opcional</span></label>
               <input id="tel" class="f" type="tel" formControlName="phoneNumber" autocomplete="tel" inputmode="tel" placeholder="DDD + número" />
             </div>
           </div>
         </section>
 
         <section class="panel" formGroupName="anamnesis">
-          <div class="ph"><span>Anamnese · PAR-Q</span><span class="k">respostas "sim" ganham destaque no perfil e no relatório</span></div>
+          <div class="ph"><span>Anamnese · PAR-Q</span><span class="k">opcional · respostas "sim" ganham destaque no perfil e no relatório</span></div>
           <div class="tw">
             <table>
               <tbody>

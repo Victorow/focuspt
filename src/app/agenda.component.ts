@@ -91,8 +91,8 @@ import { ToastService } from './toast.service';
         </div>
         <form [formGroup]="form" (ngSubmit)="onSubmit()" class="fg" novalidate>
           <div>
-            <label class="lb" for="al">Aluno</label>
-            <select id="al" class="f" formControlName="aluno_id" #alunoSel>
+            <label class="lb req" for="al">Aluno</label>
+            <select id="al" class="f" formControlName="aluno_id" aria-required="true" #alunoSel>
               <option value="" disabled>{{ students().length ? 'Selecione' : 'Nenhum aluno cadastrado' }}</option>
               @for (st of students(); track st.id) {
                 <option [value]="st.id">{{ st.name }}</option>
@@ -103,21 +103,21 @@ import { ToastService } from './toast.service';
             }
           </div>
           <div>
-            <label class="lb" for="dt">Data</label>
-            <input id="dt" class="f" type="date" formControlName="date" />
+            <label class="lb req" for="dt">Data</label>
+            <input id="dt" class="f" type="date" formControlName="date" aria-required="true" />
             @if (form.get('date')?.touched && form.get('date')?.invalid) {
               <div class="k up">Informe a data.</div>
             }
           </div>
           <div>
-            <label class="lb" for="hr">Hora</label>
-            <input id="hr" class="f" type="time" formControlName="time" />
+            <label class="lb req" for="hr">Hora</label>
+            <input id="hr" class="f" type="time" formControlName="time" aria-required="true" />
             @if (form.get('time')?.touched && form.get('time')?.invalid) {
               <div class="k up">Informe a hora.</div>
             }
           </div>
           <div>
-            <label class="lb" for="fc">Foco</label>
+            <label class="lb" for="fc">Foco <span class="k">opcional</span></label>
             <input id="fc" class="f" type="text" formControlName="focus" maxlength="500" />
           </div>
           <button type="submit" class="btn btnP" [disabled]="form.invalid || isSaving()">

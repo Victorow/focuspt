@@ -34,17 +34,17 @@ const ROWS: ReadonlyArray<{ l: string; v: string; d: string; c: 'nt' | 'dn' | 'u
 
         <form class="form" [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
           <div>
-            <label class="lb" for="email">E-mail</label>
-            <input id="email" class="f tall" type="email" formControlName="email" autocomplete="email" placeholder="exemplo@focuspt.com" />
+            <label class="lb req" for="email">E-mail</label>
+            <input id="email" class="f tall" type="email" formControlName="email" autocomplete="email" aria-required="true" placeholder="exemplo@focuspt.com" />
             @if (loginForm.get('email')?.touched && loginForm.get('email')?.invalid) {
               <div class="k up msg">Insira um e-mail válido.</div>
             }
           </div>
 
           <div>
-            <label class="lb" for="senha">Senha</label>
+            <label class="lb req" for="senha">Senha</label>
             <div class="pw">
-              <input id="senha" class="f tall" [type]="showPassword() ? 'text' : 'password'" formControlName="password" autocomplete="current-password" />
+              <input id="senha" class="f tall" [type]="showPassword() ? 'text' : 'password'" formControlName="password" autocomplete="current-password" aria-required="true" />
               <button type="button" class="btn btnQ toggle" (click)="togglePasswordVisibility()" [attr.aria-pressed]="showPassword()">
                 {{ showPassword() ? 'Ocultar' : 'Mostrar' }}
               </button>

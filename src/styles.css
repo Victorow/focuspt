@@ -111,6 +111,8 @@ html, body {
   textarea.f { padding: 8px 10px; min-height: 80px; resize: vertical; }
   select.f { padding-right: 28px; }
   .lb { font-weight: 500; font-size: 12px; color: var(--tx2); display: block; margin-bottom: 4px; }
+  /* Campo obrigatório: asterisco após o rótulo (a legenda "* obrigatório" fica no cabeçalho do formulário). */
+  .req::after { content: " *"; color: var(--bad); font-weight: 600; }
 
   .kpi { display: grid; gap: 1px; background: var(--bd); border: 1px solid var(--bd); border-radius: 6px; overflow: hidden; }
   .kpi > div { background: var(--sf); padding: 12px 14px; min-width: 0; }
